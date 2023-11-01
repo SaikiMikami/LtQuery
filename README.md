@@ -9,7 +9,7 @@ Instead, call giving a diverty, tiny query object.
 
 ```csharp
 var query = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.UserId == Lt.Arg<int>("UserId")).OrderBy(_ => _.Date).Take(20);
-var blogs = connection.Query(query, new{ UserId = 5 });
+var blogs = connection.Query(query, new { UserId = 5 });
 ```
 
 # Performance
