@@ -2,14 +2,16 @@
 
 ## Features
 
-LtQuery is a ORM focus on Easy-to-use and Performance. 
+LtQuery is a ORM focus on Easy-to-use and high performance. 
 
 LtQuery does not accept the input of SQL which is a string.
 Instead, call giving a diverty, tiny query object.
 
 ```csharp
 // create query object
-var query = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.UserId == Lt.Arg<int>("UserId")).OrderBy(_ => _.Date).Take(20);
+var query = Lt.Query<Blog>().Include(_ => _.Posts)
+	.Where(_ => _.UserId == Lt.Arg<int>("UserId"))
+	.OrderBy(_ => _.Date).Take(20);
 
 // execute query
 var blogs = connection.Query(query, new { UserId = 5 });
@@ -58,7 +60,7 @@ the optimized process is executed when the second time Later.
 
 ```csharp
 // hold query object
-static Query<Blog> _query = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>()).ToImmutable();
+static readonly Query<Blog> _query = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>()).ToImmutable();
 
 public Blog Find(int id)
 {

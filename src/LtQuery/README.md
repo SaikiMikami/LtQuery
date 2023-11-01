@@ -2,7 +2,7 @@
 
 ## About
 
-LtQuery is a ORM focus on Easy-to-use and Performance. 
+LtQuery is a ORM focus on Easy-to-use and high performance
 
 LtQuery does not accept the input of SQL which is a string.
 Instead, call giving a diverty, tiny query object.
@@ -28,7 +28,6 @@ using(var scope = provider.CreateScope())
 	// execute query
 	var blogs = connection.Query(query, new { UserId = 5 });
 }
-
 ```
 
 ## Install
