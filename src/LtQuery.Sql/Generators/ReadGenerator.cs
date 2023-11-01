@@ -1,4 +1,4 @@
-﻿#define DynamicAssmemblySave
+﻿//#define DynamicAssmemblySave
 
 using LtQuery.Metadata;
 using System.Data.Common;
