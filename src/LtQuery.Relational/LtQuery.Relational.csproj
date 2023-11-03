@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Title>LtQuery.Sql</Title>
+    <Title>LtQuery.Relational</Title>
     <PackageTags>orm;sql</PackageTags>
     <Description>a high performance mapper for .Net</Description>
     <Authors>Saiki Mikami</Authors>
@@ -12,7 +12,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <SignAssembly>True</SignAssembly>
-    <AssemblyOriginatorKeyFile>LtQuery.Sql.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>LtQuery.Relational.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>

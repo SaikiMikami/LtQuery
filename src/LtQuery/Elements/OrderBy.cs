@@ -1,6 +1,8 @@
 ﻿namespace LtQuery.Elements;
 
+#pragma warning disable CS0659
 public sealed class OrderBy : AbstractImmutable, IEquatable<OrderBy>
+#pragma warning restore CS0659
 {
     public PropertyValue Property { get; }
     public OrderByType Type { get; }
@@ -21,12 +23,14 @@ public sealed class OrderBy : AbstractImmutable, IEquatable<OrderBy>
     public override bool Equals(object? obj) => Equals(obj as OrderBy);
     public bool Equals(OrderBy? other)
     {
+        if (ReferenceEquals(this, other))
+            return true;
         if (other == null)
             return false;
 
         if (!Property.Equals(other.Property))
             return false;
-        if (Type  != other.Type)
+        if (Type != other.Type)
             return false;
         return true;
     }

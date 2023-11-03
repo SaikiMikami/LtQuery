@@ -1,7 +1,7 @@
 ﻿using LtQuery.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LtQuery.Sql;
+namespace LtQuery.Relational;
 
 public static class ServiceCollectionExtensions
 {

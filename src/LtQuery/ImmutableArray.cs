@@ -2,7 +2,9 @@
 
 namespace LtQuery;
 
+#pragma warning disable CS0659
 public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T>, IEquatable<ImmutableArray<T>> where T : IImmutable
+#pragma warning restore CS0659
 {
     readonly T[] _values;
     public ImmutableArray(T[] values)
@@ -20,6 +22,7 @@ public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T>, IEquatable
     {
         var code = 0;
         var length = _values.Length;
+        AddHashCode(ref code, length);
         if (length >= 1)
         {
             AddHashCode(ref code, _values[0]);
@@ -39,10 +42,12 @@ public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T>, IEquatable
     public override bool Equals(object? obj) => Equals(obj as Query<ImmutableArray<T>>);
     public bool Equals(ImmutableArray<T>? other)
     {
+        if (ReferenceEquals(this, other))
+            return true;
         if (other == null)
             return false;
 
-        if(Count != other.Count) 
+        if (Count != other.Count)
             return false;
         for (var i = 0; i < Count; i++)
         {

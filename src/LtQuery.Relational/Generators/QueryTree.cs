@@ -4,7 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Reflection.Emit;
 
-namespace LtQuery.Sql.Generators;
+namespace LtQuery.Relational.Generators;
 
 class QueryTree
 {

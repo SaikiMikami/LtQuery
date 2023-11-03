@@ -2,11 +2,11 @@
 using LtQuery.Metadata;
 using LtQuery.SqlServer.Values;
 using System.Text;
-using QueryNode = LtQuery.Sql.Generators.QueryNode;
+using QueryNode = LtQuery.Relational.Generators.QueryNode;
 
 namespace LtQuery.SqlServer;
 
-class SqlBuilder : Sql.ISqlBuilder
+class SqlBuilder : Relational.ISqlBuilder
 {
     readonly EntityMetaService _metaService;
     public SqlBuilder(EntityMetaService metaService)

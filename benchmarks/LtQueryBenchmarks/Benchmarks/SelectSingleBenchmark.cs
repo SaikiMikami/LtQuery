@@ -38,6 +38,12 @@ public class SelectSingleBenchmark : IBenchmark
     }
 
     [Benchmark]
+    public int Raw()
+    {
+        return _rawBenchmark.SelectSingle();
+    }
+
+    [Benchmark]
     public int LtQuery()
     {
         return _fastORMBenchmark.SelectSingle();
@@ -53,11 +59,5 @@ public class SelectSingleBenchmark : IBenchmark
     public int EFCore()
     {
         return _eFCoreBenchmark.SelectSingle();
-    }
-
-    [Benchmark]
-    public int Raw()
-    {
-        return _rawBenchmark.SelectSingle();
     }
 }

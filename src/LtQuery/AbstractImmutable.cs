@@ -10,5 +10,7 @@ public abstract class AbstractImmutable : IImmutable
     }
     protected abstract int CreateHashCode();
 
+    protected static int AddHashCode(ref int code, int value) => code = unchecked(code * 5 ^ value);
+    protected static int AddHashCode(ref int code, int? value) => code = unchecked(code * 5 ^ (value ?? 0));
     protected static int AddHashCode(ref int code, object? value) => code = unchecked(code * 5 ^ (value?.GetHashCode() ?? 0));
 }

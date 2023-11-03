@@ -1,7 +1,7 @@
 ﻿using LtQuery.Elements;
 using LtQuery.Elements.Values;
 using LtQuery.Elements.Values.Operators;
-using LtQuery.Sql.Generators;
+using LtQuery.Relational.Generators;
 using LtQuery.SqlServer.Values;
 using LtQuery.SqlServer.Values.Operators;
 

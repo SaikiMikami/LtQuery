@@ -1,6 +1,8 @@
 ﻿namespace LtQuery.Elements.Values;
 
+#pragma warning disable CS0659
 public sealed class ParameterValue : AbstractImmutable, IValue, IEquatable<ParameterValue>
+#pragma warning restore CS0659
 {
     public string Name { get; }
     public Type Type { get; }
@@ -15,12 +17,14 @@ public sealed class ParameterValue : AbstractImmutable, IValue, IEquatable<Param
     public override bool Equals(object? obj) => Equals(obj as ParameterValue);
     public bool Equals(ParameterValue? other)
     {
+        if (ReferenceEquals(this, other))
+            return true;
         if (other == null)
             return false;
 
-        if (!Name.Equals(other.Name))
+        if (Name != other.Name)
             return false;
-        if (!Type.Equals(other.Type))
+        if (Type != other.Type)
             return false;
         return true;
     }

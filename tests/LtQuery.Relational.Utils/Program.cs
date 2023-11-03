@@ -19,14 +19,9 @@ internal class Program
             case "1":
                 createReader();
                 break;
-            case "2":
-                createReader();
-                break;
         }
     }
 
-    //static readonly Query<Blog> _query = Lt.Query<Blog>().Include(_ => _.Posts).ToImmutable();
-    static Query<Blog> _includeUniqueManyQueryWithWhere = Lt.Query<Blog>().Where(_ => _.CategoryId < Lt.Arg<int>("CategoryId")).Include(_ => _.Posts).Include(_ => _.User).ToImmutable();
     static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Where(_ => _.Id < Lt.Arg<int>("Id")).Include(_ => _.Posts).ToImmutable();
     static void createReader()
     {

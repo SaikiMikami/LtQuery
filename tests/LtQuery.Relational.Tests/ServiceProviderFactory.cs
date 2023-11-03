@@ -1,7 +1,7 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LtQuery.Sql.Tests;
+namespace LtQuery.Relational.Tests;
 
 public class ServiceProviderFactory
 {

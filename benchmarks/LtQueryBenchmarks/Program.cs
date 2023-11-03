@@ -41,10 +41,8 @@ class Program
     {
         var switcher = new BenchmarkSwitcher(new[]
         {
-            //typeof(InitialBenchmark),
             typeof(SelectSingleBenchmark),
             typeof(SelectSimpleBenchmark),
-            typeof(SelectAllIncludeUniqueManyBenchmark),
             typeof(SelectIncludeChilrenBenchmark),
             typeof(JoinBenchmark),
         });
@@ -60,8 +58,8 @@ class Program
         //accums = new List<int>
         //{
         //    benchmark.LtQuery(),
-        //    benchmark.EFCore(),
         //    benchmark.Dapper(),
+        //    benchmark.EFCore(),
         //};
         //benchmark.Cleanup();
         //if (accums.Distinct().Count() != 1)
@@ -72,8 +70,8 @@ class Program
         //accums = new List<int>
         //{
         //    benchmark.LtQuery(),
-        //    benchmark.EFCore(),
         //    benchmark.Dapper(),
+        //    benchmark.EFCore(),
         //};
         //benchmark.Cleanup();
         //if (accums.Distinct().Count() != 1)
@@ -84,8 +82,8 @@ class Program
         //accums = new List<int>
         //{
         //    benchmark.LtQuery(),
-        //    benchmark.EFCore(),
         //    benchmark.Dapper(),
+        //    benchmark.EFCore(),
         //};
         //benchmark.Cleanup();
         //if (accums.Distinct().Count() != 1)
@@ -95,10 +93,10 @@ class Program
         //benchmark.Setup();
         //accums = new List<int>
         //{
-        //    benchmark.LtQuery(),
-        //    benchmark.EFCore(),
-        //    benchmark.Dapper(),
         //    benchmark.Raw(),
+        //    benchmark.LtQuery(),
+        //    benchmark.Dapper(),
+        //    benchmark.EFCore(),
         //};
         //benchmark.Cleanup();
         //if (accums.Distinct().Count() != 1)
@@ -108,10 +106,10 @@ class Program
         benchmark.Setup();
         accums = new List<int>
         {
-            benchmark.LtQuery(),
-            benchmark.EFCore(),
-            benchmark.Dapper(),
             benchmark.Raw(),
+            benchmark.LtQuery(),
+            benchmark.Dapper(),
+            benchmark.EFCore(),
         };
         benchmark.Cleanup();
         if (accums.Distinct().Count() != 1)
@@ -119,9 +117,8 @@ class Program
     }
     static void myRunBenchmarks()
     {
-        //new MyBenchmarkRunner(new InitialBenchmark()).Run();
-        //new MyBenchmarkRunner(new SelectSingleBenchmark()).Run();
-        //new MyBenchmarkRunner(new SelectAllBenchmark()).Run();
+        new MyBenchmarkRunner(new SelectSingleBenchmark()).Run();
+        new MyBenchmarkRunner(new SelectSimpleBenchmark()).Run();
         new MyBenchmarkRunner(new SelectIncludeChilrenBenchmark()).Run();
     }
 }

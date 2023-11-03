@@ -1,4 +1,4 @@
-﻿namespace LtQuery.Sql;
+﻿namespace LtQuery.Relational;
 
 static class TypeExtensions
 {

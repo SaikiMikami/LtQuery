@@ -1,4 +1,4 @@
-﻿using QueryNode = LtQuery.Sql.Generators.QueryNode;
+﻿using QueryNode = LtQuery.Relational.Generators.QueryNode;
 
 namespace LtQuery.SqlServer;
 

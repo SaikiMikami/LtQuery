@@ -8,7 +8,7 @@ using Lokad.ILPack;
 using System.Reflection;
 #endif
 
-namespace LtQuery.Sql.Generators;
+namespace LtQuery.Relational.Generators;
 
 class ReadGenerator<TEntity> where TEntity : class
 {

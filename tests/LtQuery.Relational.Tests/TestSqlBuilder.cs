@@ -1,4 +1,4 @@
-﻿namespace LtQuery.Sql.Tests;
+﻿namespace LtQuery.Relational.Tests;
 
 class TestSqlBuilder : ISqlBuilder
 {
