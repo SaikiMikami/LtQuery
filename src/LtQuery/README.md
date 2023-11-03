@@ -26,7 +26,7 @@ using(var scope = provider.CreateScope())
 	var query = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.UserId == Lt.Arg<int>("UserId")).OrderBy(_ => _.Date).Take(20);
 
 	// execute query
-	var blogs = connection.Query(query, new { UserId = 5 });
+	var blogs = connection.Select(query, new { UserId = 5 });
 }
 ```
 

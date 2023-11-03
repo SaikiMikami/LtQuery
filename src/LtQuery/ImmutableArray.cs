@@ -2,7 +2,7 @@
 
 namespace LtQuery;
 
-public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T> where T : IImmutable
+public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T>, IEquatable<ImmutableArray<T>> where T : IImmutable
 {
     readonly T[] _values;
     public ImmutableArray(T[] values)
@@ -34,6 +34,22 @@ public class ImmutableArray<T> : AbstractImmutable, IReadOnlyList<T> where T : I
             }
         }
         return code;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Query<ImmutableArray<T>>);
+    public bool Equals(ImmutableArray<T>? other)
+    {
+        if (other == null)
+            return false;
+
+        if(Count != other.Count) 
+            return false;
+        for (var i = 0; i < Count; i++)
+        {
+            if (!Equals(this[i], other[i]))
+                return false;
+        }
+        return true;
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

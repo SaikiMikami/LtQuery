@@ -1,6 +1,6 @@
 ﻿namespace LtQuery.Elements.Values.Operators;
 
-public sealed class EqualOperator : AbstractImmutable, IBinaryOperator, IBoolValue
+public sealed class EqualOperator : AbstractImmutable, IBinaryOperator, IBoolValue, IEquatable<EqualOperator>
 {
     public IValue Lhs { get; }
     public IValue Rhs { get; }
@@ -16,5 +16,18 @@ public sealed class EqualOperator : AbstractImmutable, IBinaryOperator, IBoolVal
         AddHashCode(ref code, Lhs);
         AddHashCode(ref code, Rhs);
         return code;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as EqualOperator);
+    public bool Equals(EqualOperator? other)
+    {
+        if (other == null)
+            return false;
+
+        if (!Lhs.Equals(other.Lhs))
+            return false;
+        if (!Rhs.Equals(other.Rhs))
+            return false;
+        return true;
     }
 }

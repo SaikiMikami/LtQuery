@@ -1,6 +1,6 @@
 ﻿namespace LtQuery.Elements.Values.Operators;
 
-public sealed class NotEqualOperator : AbstractImmutable, IBinaryOperator, IBoolValue
+public sealed class NotEqualOperator : AbstractImmutable, IBinaryOperator, IBoolValue, IEquatable<NotEqualOperator>
 {
     public IValue Lhs { get; }
     public IValue Rhs { get; }
@@ -16,5 +16,18 @@ public sealed class NotEqualOperator : AbstractImmutable, IBinaryOperator, IBool
         AddHashCode(ref code, Lhs);
         AddHashCode(ref code, Rhs);
         return code;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as NotEqualOperator);
+    public bool Equals(NotEqualOperator? other)
+    {
+        if (other == null)
+            return false;
+
+        if (!Lhs.Equals(other.Lhs))
+            return false;
+        if (!Rhs.Equals(other.Rhs))
+            return false;
+        return true;
     }
 }

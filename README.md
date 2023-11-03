@@ -14,7 +14,7 @@ var query = Lt.Query<Blog>().Include(_ => _.Posts)
 	.OrderBy(_ => _.Date).Take(20);
 
 // execute query
-var blogs = connection.Query(query, new { UserId = 5 });
+var blogs = connection.Select(query, new { UserId = 5 });
 ```
 See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
 
@@ -66,7 +66,7 @@ static readonly Query<Blog> _query = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<
 
 public Blog Find(int id)
 {
-  return _connection.QuerySingle(_query, new{ Id = id });
+  return _connection.Single(_query, new { Id = id });
 }
 ```
 

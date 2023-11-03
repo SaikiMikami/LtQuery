@@ -6,7 +6,7 @@ namespace LtQuery;
 /// Query object.
 /// </summary>
 /// <typeparam name="TEntity"></typeparam>
-public class Query<TEntity> : AbstractImmutable where TEntity : class
+public class Query<TEntity> : AbstractImmutable, IEquatable<Query<TEntity>> where TEntity : class
 {
     /// <summary>
     /// Where clause condition
@@ -50,5 +50,24 @@ public class Query<TEntity> : AbstractImmutable where TEntity : class
         AddHashCode(ref code, SkipCount);
         AddHashCode(ref code, TakeCount);
         return code;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Query<TEntity>);
+    public bool Equals(Query<TEntity>? other)
+    {
+        if(other == null)
+            return false;
+
+        if (!Equals(Condition, other.Condition))
+            return false;
+        if (!Includes.Equals(other.Includes))
+            return false;
+        if (!Equals(SkipCount, other.SkipCount))
+            return false;
+        if (!Equals(TakeCount, other.TakeCount))
+            return false;
+        if (!Equals(OrderBys, other.OrderBys))
+            return false;
+        return true;
     }
 }
