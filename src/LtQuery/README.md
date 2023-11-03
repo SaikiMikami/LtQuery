@@ -32,7 +32,8 @@ using(var scope = provider.CreateScope())
 
 ## Install
 
-```powershell
-dotnet add package LtQuery
-```
+Case using SQL Server.
 
+```powershell
+dotnet add package LtQuery.SqlServer
+```

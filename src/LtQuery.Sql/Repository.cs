@@ -297,15 +297,15 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
     static DbType getDbType(Type type)
     {
-        if (type == typeof(int))
+        if (type == typeof(int) || type == typeof(int?))
             return DbType.Int32;
-        else if (type == typeof(long))
+        else if (type == typeof(long) || type == typeof(long?))
             return DbType.Int64;
-        else if (type == typeof(bool))
+        else if (type == typeof(bool) || type == typeof(bool?))
             return DbType.Boolean;
         else if (type == typeof(string))
             return DbType.String;
-        else if (type == typeof(DateTime))
+        else if (type == typeof(DateTime) || type == typeof(DateTime?))
             return DbType.DateTime;
         else
             throw new NotSupportedException();
