@@ -16,7 +16,7 @@ var query = Lt.Query<Blog>().Include(_ => _.Posts)
 // execute query
 var blogs = connection.Query(query, new { UserId = 5 });
 ```
-See [wiki](wiki/LtQuery) for details.
+See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
 
 
 # Performance
@@ -31,7 +31,7 @@ See [wiki](wiki/LtQuery) for details.
 
 ## SelectOne from Single table
 
-| Method  | Mean      | Error    | StdDev   | Gen0    | Allocated |
+| ORM  | Mean      | Error    | StdDev   | Gen0    | Allocated |
 |-------- |----------:|---------:|---------:|--------:|----------:|
 | ADO.NET |  90.59 μs | 0.582 μs | 0.545 μs |  2.6855 |   5.59 KB |
 | **LtQuery** |  **96.23 μs** | **0.731 μs** | **0.571 μs** |  **2.5635** |   **5.38 KB** |
@@ -40,7 +40,7 @@ See [wiki](wiki/LtQuery) for details.
 
 ## SelectMany(20) from Single table
 
-| Method  | Mean     | Error   | StdDev  | Gen0    | Allocated |
+| ORM  | Mean     | Error   | StdDev  | Gen0    | Allocated |
 |-------- |---------:|--------:|--------:|--------:|----------:|
 | ADO.NET | 215.3 μs | 1.19 μs | 1.11 μs | 32.9590 |  67.48 KB |
 | **LtQuery** | **226.7 μs** | **0.99 μs** | **0.93 μs** | **32.7148** |  **67.23 KB** |
@@ -49,7 +49,7 @@ See [wiki](wiki/LtQuery) for details.
 
 ## SelectMany(20) from With children
 
-| Method  | Mean     | Error     | StdDev    | Gen0     | Gen1     | Allocated |
+| ORM  | Mean     | Error     | StdDev    | Gen0     | Gen1     | Allocated |
 |-------- |---------:|----------:|----------:|---------:|---------:|----------:|
 | ADO.NET | 4.103 ms | 0.0469 ms | 0.0439 ms | 296.8750 | 195.3125 |   1.44 MB |
 | **LtQuery** | **4.309 ms** | **0.0844 ms** | **0.1263 ms** | **304.6875** | **195.3125** |   **1.44 MB** |
