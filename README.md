@@ -62,7 +62,7 @@ the optimized process is executed when the second time Later.
 
 ```csharp
 // hold query object
-static readonly Query<Blog> _query = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>()).ToImmutable();
+static readonly Query<Blog> _query = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
 
 public Blog Find(int id)
 {
