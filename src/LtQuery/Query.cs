@@ -6,7 +6,9 @@ namespace LtQuery;
 /// Query object.
 /// </summary>
 /// <typeparam name="TEntity"></typeparam>
+#pragma warning disable CS0659
 public class Query<TEntity> : AbstractImmutable, IEquatable<Query<TEntity>> where TEntity : class
+#pragma warning restore CS0659
 {
     /// <summary>
     /// Where clause condition
@@ -55,7 +57,9 @@ public class Query<TEntity> : AbstractImmutable, IEquatable<Query<TEntity>> wher
     public override bool Equals(object? obj) => Equals(obj as Query<TEntity>);
     public bool Equals(Query<TEntity>? other)
     {
-        if(other == null)
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other == null)
             return false;
 
         if (!Equals(Condition, other.Condition))

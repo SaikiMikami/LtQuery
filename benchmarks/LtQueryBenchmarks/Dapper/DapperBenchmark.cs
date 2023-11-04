@@ -7,12 +7,6 @@ namespace LtQueryBenchmarks.Dapper
 {
     public class DapperBenchmark : AbstractBenchmark
     {
-        const string _singleSql = "SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog] WHERE [Id] = 1";
-        const string _selectSimpleSql = "SELECT TOP(20) [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog] ORDER BY [Id]";
-        const string _allIncludeUniqueManySql = @"
-SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog];
-SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM (SElECT t1.[Id] FROM [Blog] AS t1) AS _ INNER JOIN [Post] AS t2 ON _.[Id] = t2.[BlogId];
-";
 
         IDbConnection _connection;
         public void Setup()
@@ -22,8 +16,7 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM (SElE
             _connection.Query<Blog>(_singleSql);
             _connection.Query<Blog>(_selectSimpleSql);
 
-
-            using (var multi = _connection.QueryMultiple(_allIncludeUniqueManySql))
+            using (var multi = _connection.QueryMultiple(_selectIncludeChilrenSql, new { Id = 20 }))
             {
                 var entities = multi.Read<Blog>().ToArray();
                 var posts = multi.Read<Post>().ToArray();
@@ -36,6 +29,7 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM (SElE
             _connection.Dispose();
         }
 
+        const string _singleSql = "SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog] WHERE [Id] = 1";
 
         public int SelectSingle()
         {
@@ -45,6 +39,8 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM (SElE
             AddHashCode(ref accum, entity.Id);
             return accum;
         }
+
+        const string _selectSimpleSql = "SELECT TOP(20) [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog] ORDER BY [Id]";
 
         public int SelectSimple()
         {
@@ -58,41 +54,6 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM (SElE
             }
             return accum;
         }
-
-        public int SelectAllIncludeUniqueMany()
-        {
-            var accum = 0;
-            var dict = new Dictionary<int, Post>();
-
-            //var entities = _connection.Query<_3_A, _3_B, _3_A>(_allIncludeUniqueManySql,
-            //    (a, b) =>
-            //    {
-            //        a.Bs.Add(b);
-            //        return a;
-            //    });
-
-            IReadOnlyList<Blog> entities;
-            using (var multi = _connection.QueryMultiple(_allIncludeUniqueManySql))
-            {
-                entities = multi.Read<Blog>().ToArray();
-                var posts = multi.Read<Post>().ToArray();
-
-                var blogDic = entities.ToDictionary(_ => _.Id);
-                foreach (var post in posts)
-                {
-                    var blog = blogDic[post.BlogId];
-                    blog.Posts.Add(post);
-                    post.Blog = blog;
-                }
-            }
-
-            foreach (var entity in entities)
-            {
-                AddHashCode(ref accum, entity.Id);
-            }
-            return accum;
-        }
-
 
 
         const string _selectIncludeChilrenSql = @"

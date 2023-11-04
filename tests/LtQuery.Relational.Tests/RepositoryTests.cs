@@ -1,9 +1,8 @@
 ﻿using LtQuery.Metadata;
 using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
-using System.Data.Common;
 
-namespace LtQuery.Sql.Tests;
+namespace LtQuery.Relational.Tests;
 
 public class RepositoryTests
 {
@@ -27,11 +26,10 @@ public class RepositoryTests
             var provider = scope.ServiceProvider;
 
             var sqlBuilder = _provider.GetRequiredService<ISqlBuilder>();
-            var repository = new Repository<Blog>(_metaService, sqlBuilder);
+            var repository = new Repository<Blog>(_metaService);
 
-            var connection = _provider.GetRequiredService<DbConnection>();
-            connection.Open();
-            var array = repository.Select(connection, query);
+            var connection = _provider.GetRequiredService<ILtConnection>();
+            var array = repository.Select((LtConnection)connection, query);
         }
     }
 }

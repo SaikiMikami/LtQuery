@@ -31,7 +31,7 @@ public static class FluentExtensions
                 if (o == null || o is not int)
                     throw new ArgumentException("Must be int type", nameof(count));
                 return _this.Skip((int)o);
-            case MemberExpression member:
+            case MemberExpression:
                 throw new ArgumentException("Can't pass variables with LINQ", nameof(count));
             case MethodCallExpression call:
                 if (!isArg(call.Method))
@@ -52,7 +52,7 @@ public static class FluentExtensions
                 if (o == null || o is not int)
                     throw new ArgumentException("Must be int type", nameof(count));
                 return _this.Take((int)o);
-            case MemberExpression member:
+            case MemberExpression:
                 throw new ArgumentException("Can't pass variables with LINQ", nameof(count));
             case MethodCallExpression call:
                 if (!isArg(call.Method))

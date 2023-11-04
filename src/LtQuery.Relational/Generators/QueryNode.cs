@@ -2,7 +2,7 @@
 using LtQuery.Elements.Values;
 using LtQuery.Metadata;
 
-namespace LtQuery.Sql.Generators;
+namespace LtQuery.Relational.Generators;
 
 public class QueryNode
 {

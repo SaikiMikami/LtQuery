@@ -38,6 +38,12 @@ public class SelectIncludeChilrenBenchmark : IBenchmark
     }
 
     [Benchmark]
+    public int Raw()
+    {
+        return _rawBenchmark.SelectIncludeChilren();
+    }
+
+    [Benchmark]
     public int LtQuery()
     {
         return _fastORMBenchmark.SelectIncludeChilren();
@@ -53,11 +59,5 @@ public class SelectIncludeChilrenBenchmark : IBenchmark
     public int EFCore()
     {
         return _eFCoreBenchmark.SelectIncludeChilren();
-    }
-
-    [Benchmark]
-    public int Raw()
-    {
-        return _rawBenchmark.SelectIncludeChilren();
     }
 }

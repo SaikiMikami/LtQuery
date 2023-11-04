@@ -39,10 +39,10 @@ class MyBenchmarkRunner
 
         var runnables = new List<Runnable>()
             {
-                 new Runnable(_benchmark.LtQuery),
-                 //new Runnable(_benchmark.Dapper),
-                 new Runnable(_benchmark.EFCore),
                  new Runnable(_benchmark.Raw),
+                 new Runnable(_benchmark.LtQuery),
+                 new Runnable(_benchmark.Dapper),
+                 new Runnable(_benchmark.EFCore),
             };
         var count = 0;
         var start = DateTime.Now;

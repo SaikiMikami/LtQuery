@@ -17,11 +17,10 @@ class LtQueryBenchmark : AbstractBenchmark
         return collection.BuildServiceProvider();
     }
 
-    IServiceScope _scope;
-    ILtConnection _connection;
+    IServiceScope _scope = default!;
+    ILtConnection _connection = default!;
     static Query<Blog> _singleQuery = Lt.Query<Blog>().Where(_ => _.Id == 1).ToImmutable();
     static Query<Blog> _selectSimpleQuery = Lt.Query<Blog>().OrderBy(_ => _.Id).Take(20).ToImmutable();
-    static Query<Blog> _includeUniqueManyQuery = Lt.Query<Blog>().Include(_ => _.Posts).ToImmutable();
     static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Where(_ => _.Id < Lt.Arg<int>("Id")).Include(_ => _.Posts).ToImmutable();
     public void Setup()
     {
@@ -32,8 +31,7 @@ class LtQueryBenchmark : AbstractBenchmark
         _connection = provider.GetRequiredService<ILtConnection>();
         _connection.Select(_singleQuery);
         _connection.Select(_selectSimpleQuery);
-        _connection.Select(_includeUniqueManyQuery);
-        _connection.Select(_includeChilrenQuery, new { Id = 20 });
+        _connection.Select(_includeChilrenQuery, new { Id = 1 });
     }
     public void Cleanup()
     {
@@ -54,19 +52,6 @@ class LtQueryBenchmark : AbstractBenchmark
         var accum = 0;
 
         var entities = _connection.Select(_selectSimpleQuery);
-
-        foreach (var entity in entities)
-        {
-            AddHashCode(ref accum, entity.Id);
-        }
-        return accum;
-    }
-
-    public int SelectAllIncludeUniqueMany()
-    {
-        var accum = 0;
-
-        var entities = _connection.Select(_includeUniqueManyQuery);
 
         foreach (var entity in entities)
         {

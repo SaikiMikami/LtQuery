@@ -4,7 +4,7 @@ using System.Data.Common;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace LtQuery.Sql.Generators;
+namespace LtQuery.Relational.Generators;
 
 class TableTree
 {
@@ -39,15 +39,13 @@ class TableTree
     // 変数宣言
     public void CreateLocalAndLabel(ILGenerator il)
     {
+        Entity = il.DeclareLocal(Type);
         if (Node.HasSubQuery() || (Node.Navigation != null && !Node.Navigation.IsUnique))
         {
             Dictionary = il.DeclareLocal(dictionaryType);
             PretId = il.DeclareLocal(Meta.Key.Type);
             Id = il.DeclareLocal(Meta.Key.Type);
         }
-
-        if (Node.Parent != null || Dictionary != null)
-            Entity = il.DeclareLocal(Type);
 
         foreach (var child in Children)
         {
@@ -160,21 +158,13 @@ class TableTree
 
             var hasEntities = Query.TopTable == this && Query.Parent == null;
 
-            if (hasEntities)
-            {
-                il.EmitLdloc(0);
-            }
+            // entity = new Entity()
             emitCreate(il, index);
-            if (Entity != null)
-            {
-                // entity = new Entity()
-                il.EmitStloc(Entity);
-            }
             if (hasEntities)
             {
-                if (Entity != null)
-                    il.EmitLdloc(Entity);
-                // entities.Add(new Entity())
+                // entities.Add(entity)
+                il.EmitLdloc(0);
+                il.EmitLdloc(Entity);
                 il.EmitCall(typeof(List<>).MakeGenericType(Type).GetMethod("Add")!);
             }
             if (Dictionary != null)
@@ -206,7 +196,6 @@ class TableTree
         }
     }
 
-    // push 1
     void emitCreate(ILGenerator il, int index)
     {
         // push (?)reader[0]
@@ -227,6 +216,7 @@ class TableTree
 
         // push new TEntity()
         il.Emit(OpCodes.Newobj, Type.GetConstructor(properties.Select(_ => _.Type).ToArray())!);
+        il.EmitStloc(Entity);
     }
 
     static MethodInfo _IsDBNull = typeof(DbDataReader).GetMethod("IsDBNull")!;
@@ -243,7 +233,7 @@ class TableTree
             var elseStart = il.DefineLabel();
 
             // if(reader.IsDBNull)
-            il.EmitLdloc(Query.Reader!);
+            il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             il.EmitCall(_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
@@ -256,7 +246,7 @@ class TableTree
             // else
             {
                 il.MarkLabel(elseStart);
-                il.EmitLdloc(Query.Reader!);
+                il.EmitLdloc(1);
                 il.EmitLdc_I4(index);
 
                 if (type2 == typeof(int))
@@ -277,7 +267,7 @@ class TableTree
         }
         else
         {
-            il.EmitLdloc(Query.Reader!);
+            il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
             {

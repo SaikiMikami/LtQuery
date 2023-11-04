@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LtQuery.SqlServer\LtQuery.SqlServer.csproj" />
-    <ProjectReference Include="..\LtQuery.Sql.Tests\LtQuery.Sql.Tests.csproj" />
+    <ProjectReference Include="..\LtQuery.Relational.Tests\LtQuery.Relational.Tests.csproj" />
   </ItemGroup>
 
 </Project>

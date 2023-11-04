@@ -1,6 +1,8 @@
 ﻿namespace LtQuery.Elements.Values.Operators;
 
+#pragma warning disable CS0659
 public sealed class LessThanOperator : AbstractImmutable, IBinaryOperator, IBoolValue, IEquatable<LessThanOperator>
+#pragma warning restore CS0659
 {
     public IValue Lhs { get; }
     public IValue Rhs { get; }
@@ -21,6 +23,8 @@ public sealed class LessThanOperator : AbstractImmutable, IBinaryOperator, IBool
     public override bool Equals(object? obj) => Equals(obj as LessThanOperator);
     public bool Equals(LessThanOperator? other)
     {
+        if (ReferenceEquals(this, other))
+            return true;
         if (other == null)
             return false;
 

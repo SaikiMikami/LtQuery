@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LtQuery.Sql\LtQuery.Sql.csproj" />
+    <ProjectReference Include="..\LtQuery.Relational\LtQuery.Relational.csproj" />
   </ItemGroup>
 
   <ItemGroup>

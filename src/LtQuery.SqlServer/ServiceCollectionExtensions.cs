@@ -1,4 +1,4 @@
-﻿using LtQuery.Sql;
+﻿using LtQuery.Relational;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LtQuery.SqlServer;
