@@ -21,27 +21,11 @@ class LtConnection : ILtConnection
     }
     public void Dispose()
     {
-        Connection.Dispose();
-
         foreach (var commandCaches in _commandCaches)
         {
-            var commands = commandCaches.Value.SelectCommands;
-            if (commands != null)
-                foreach (var command in commands)
-                    command.Dispose();
-            commands = commandCaches.Value.SignleCommands;
-            if (commands != null)
-                foreach (var command in commands)
-                    command.Dispose();
-            commands = commandCaches.Value.FirstCommands;
-            if (commands != null)
-                foreach (var command in commands)
-                    command.Dispose();
-            commands = commandCaches.Value.CountCommands;
-            if (commands != null)
-                foreach (var command in commands)
-                    command.Dispose();
+            commandCaches.Value.Dispose();
         }
+        Connection.Dispose();
     }
 
     static class RepositoryCache<TEntity> where TEntity : class
@@ -94,81 +78,76 @@ class LtConnection : ILtConnection
 
 
 
-    public IReadOnlyList<DbCommand> GetSelectCommands<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetSelectCommand<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var commandCache = GetCommandCache(query);
-        var commands = commandCache.SelectCommands;
-        if (commands == null)
+        var command = commandCache.SelectCommand;
+        if (command == null)
         {
             var parameters = createParameters(query);
-            commands = createCommands(Connection, query, parameters);
-            commandCache.SelectCommands = commands;
+            command = createCommand(Connection, query, parameters);
+            commandCache.SelectCommand = command;
         }
-        return commands;
+        return command;
     }
 
-    public IReadOnlyList<DbCommand> GetSingleCommands<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetSingleCommand<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var commandCache = GetCommandCache(query);
-        var commands = commandCache.SignleCommands;
-        if (commands == null)
+        var command = commandCache.SelectCommand;
+        if (command == null)
         {
             var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
             var parameters = createParameters(signleQuery);
-            commands = createCommands(Connection, signleQuery, parameters);
-            commandCache.SignleCommands = commands;
+            command = createCommand(Connection, signleQuery, parameters);
+            commandCache.SelectCommand = command;
         }
-        return commands;
+        return command;
     }
 
-    public IReadOnlyList<DbCommand> GetFirstCommands<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetFirstCommand<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var commandCache = GetCommandCache(query);
-        var commands = commandCache.FirstCommands;
-        if (commands == null)
+        var command = commandCache.FirstCommand;
+        if (command == null)
         {
             var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
             var parameters = createParameters(firstQuery);
-            commands = createCommands(Connection, firstQuery, parameters);
-            commandCache.FirstCommands = commands;
+            command = createCommand(Connection, firstQuery, parameters);
+            commandCache.FirstCommand = command;
         }
-        return commands;
+        return command;
     }
 
-    public IReadOnlyList<DbCommand> GetCountCommands<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetCountCommand<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var commandCache = GetCommandCache(query);
-        var commands = commandCache.CountCommands;
-        if (commands == null)
+        var command = commandCache.CountCommand;
+        if (command == null)
         {
             var parameters = createParameters(query);
-            commands = createCommands(Connection, query, parameters);
-            commandCache.CountCommands = commands;
+            command = createCommand(Connection, query, parameters);
+            commandCache.CountCommand = command;
         }
-        return commands;
+        return command;
     }
 
-    IReadOnlyList<DbCommand> createCommands<TEntity>(DbConnection connection, Query<TEntity> query, IReadOnlyList<ParameterValue> parameters) where TEntity : class
+    DbCommand createCommand<TEntity>(DbConnection connection, Query<TEntity> query, IReadOnlyList<ParameterValue> parameters) where TEntity : class
     {
-        var sqls = _sqlBuilder.CreateSelectSqls(query);
-        var commands = new List<DbCommand>();
-        foreach (var sql in sqls)
+        var sql = _sqlBuilder.CreateSelectSql(query);
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+        if (parameters != null)
         {
-            var command = connection.CreateCommand();
-            command.CommandText = sql;
-            if (parameters != null)
+            foreach (var parameter in parameters)
             {
-                foreach (var parameter in parameters)
-                {
-                    var p = command.CreateParameter();
-                    p.ParameterName = $"@{parameter.Name}";
-                    p.DbType = getDbType(parameter.Type);
-                    command.Parameters.Add(p);
-                }
+                var p = command.CreateParameter();
+                p.ParameterName = $"@{parameter.Name}";
+                p.DbType = getDbType(parameter.Type);
+                command.Parameters.Add(p);
             }
-            commands.Add(command);
         }
-        return commands;
+        return command;
     }
 
     IReadOnlyList<ParameterValue> createParameters<TEntity>(Query<TEntity> query) where TEntity : class

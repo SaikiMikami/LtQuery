@@ -20,28 +20,31 @@ class SqlBuilder : Relational.ISqlBuilder
         return $"SELECT COUNT(*) FROM [{meta.Type.Name}]";
     }
 
-    public IReadOnlyList<string> CreateSelectSqls<TEntity>(Query<TEntity> query) where TEntity : class
+    public string CreateSelectSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var meta = _metaService.GetEntityMeta<TEntity>();
         var node = new QueryNode(meta, query.Condition, query.Includes, query.OrderBys, query.SkipCount, query.TakeCount);
         var tableIndex = 0;
         var queryTree = new QueryTree(node, query.Condition, query.SkipCount, query.TakeCount, query.OrderBys, ref tableIndex);
 
-        var list = new List<string>();
-        createSelectSqls(list, queryTree);
-        return list;
+        var strb = new StringBuilder();
+        appendSelectSqls(strb, queryTree);
+        return strb.ToString();
     }
 
-    static void createSelectSqls(List<string> list, QueryTree queryTree)
+    static void appendSelectSqls(StringBuilder strb, QueryTree queryTree)
     {
-        list.Add(createSelectSql(queryTree));
+        appendSelectSql(strb, queryTree);
 
         foreach (var child in queryTree.Children)
-            createSelectSqls(list, child);
+        {
+            strb.Append("; ");
+            appendSelectSqls(strb, child);
+        }
     }
-    static string createSelectSql(QueryTree query)
+    static void appendSelectSql(StringBuilder strb, QueryTree query)
     {
-        return new StringBuilder().AppendSelectSql(query).ToString();
+        strb.AppendSelectSql(query).ToString();
     }
 
     //public IReadOnlyList<string> CreateFirstSql<TEntity>(Query<TEntity> query) where TEntity : class

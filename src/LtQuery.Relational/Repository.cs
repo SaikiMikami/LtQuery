@@ -17,16 +17,16 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
     interface IReaderCache { }
     class ReaderCache : IReaderCache
     {
-        public Func<IReadOnlyList<DbCommand>, IReadOnlyList<TEntity>>? Select { get; set; }
-        public Func<IReadOnlyList<DbCommand>, IReadOnlyList<TEntity>>? First { get; set; }
-        public Func<IReadOnlyList<DbCommand>, IReadOnlyList<TEntity>>? Single { get; set; }
+        public Func<DbCommand, IReadOnlyList<TEntity>>? Select { get; set; }
+        public Func<DbCommand, IReadOnlyList<TEntity>>? First { get; set; }
+        public Func<DbCommand, IReadOnlyList<TEntity>>? Single { get; set; }
     }
 
     class ParameterReaderCache<TParameter> : IReaderCache
     {
-        public Func<IReadOnlyList<DbCommand>, TParameter, IReadOnlyList<TEntity>>? Select { get; set; }
-        public Func<IReadOnlyList<DbCommand>, TParameter, IReadOnlyList<TEntity>>? First { get; set; }
-        public Func<IReadOnlyList<DbCommand>, TParameter, IReadOnlyList<TEntity>>? Single { get; set; }
+        public Func<DbCommand, TParameter, IReadOnlyList<TEntity>>? Select { get; set; }
+        public Func<DbCommand, TParameter, IReadOnlyList<TEntity>>? First { get; set; }
+        public Func<DbCommand, TParameter, IReadOnlyList<TEntity>>? Single { get; set; }
     }
 
     ConditionalWeakTable<Query<TEntity>, IReaderCache> _caches = new();
@@ -61,9 +61,9 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Select = read;
         }
 
-        var commands = connection.GetSelectCommands(query);
+        var command = connection.GetSelectCommand(query);
 
-        return read(commands);
+        return read(command);
     }
 
     public IReadOnlyList<TEntity> Select<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
@@ -77,7 +77,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Select = read;
         }
 
-        var commands = connection.GetSelectCommands(query);
+        var commands = connection.GetSelectCommand(query);
 
         return read(commands, values);
     }
@@ -94,7 +94,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Single = read;
         }
 
-        var commands = connection.GetSingleCommands(query);
+        var commands = connection.GetSingleCommand(query);
 
         return read(commands).Single();
     }
@@ -111,7 +111,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Single = read;
         }
 
-        var commands = connection.GetSingleCommands(query);
+        var commands = connection.GetSingleCommand(query);
 
         return read(commands, values).Single();
     }
@@ -128,7 +128,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.First = read;
         }
 
-        var commands = connection.GetFirstCommands(query);
+        var commands = connection.GetFirstCommand(query);
 
         return read(commands).First();
     }
@@ -145,7 +145,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.First = read;
         }
 
-        var commands = connection.GetFirstCommands(query);
+        var commands = connection.GetFirstCommand(query);
 
         return read(commands, values).First();
     }

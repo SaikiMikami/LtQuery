@@ -23,7 +23,7 @@ static class ILGeneratorExtensions
                 _this.Emit(OpCodes.Ldloc_3);
                 break;
             default:
-                _this.Emit(OpCodes.Ldloc_S, num);
+                _this.Emit(OpCodes.Ldloc_S, (sbyte)num);
                 break;
         }
     }
@@ -45,7 +45,7 @@ static class ILGeneratorExtensions
                 _this.Emit(OpCodes.Stloc_3);
                 break;
             default:
-                _this.Emit(OpCodes.Stloc_S, num);
+                _this.Emit(OpCodes.Stloc_S, (sbyte)num);
                 break;
         }
     }
