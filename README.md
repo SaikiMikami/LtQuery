@@ -31,8 +31,8 @@ See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
 
 ## SelectOne from Single table
 
-| ORM  | Mean      | Error    | StdDev   | Gen0    | Allocated |
-|-------- |----------:|---------:|---------:|--------:|----------:|
+| ORM     | Mean      | Error    | StdDev   | Median    | Gen0    | Allocated |
+|-------- |----------:|---------:|---------:|--------:|----------:|----------:|
 | ADO.NET |  88.61 μs | 1.716 μs | 2.462 μs |  87.10 μs |  2.5635 |    5.3 KB |
 | **LtQuery** |  **89.17 μs** | **1.768 μs** | **1.892 μs** |  **89.54 μs** |  **2.5635** |   **5.38 KB** |
 | Dapper  | 108.11 μs | 0.267 μs | 0.250 μs | 108.03 μs |  2.8076 |   5.97 KB |
@@ -40,7 +40,7 @@ See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
 
 ## SelectMany(20) from Single table
 
-| ORM  | Mean     | Error   | StdDev  | Gen0    | Allocated |
+| ORM     | Mean     | Error   | StdDev  | Gen0    | Allocated |
 |-------- |---------:|--------:|--------:|--------:|----------:|
 | ADO.NET | 209.2 μs | 2.53 μs | 2.37 μs | 32.7148 |   67.2 KB |
 | **LtQuery** | **212.9 μs** | **1.66 μs** | **1.29 μs** | **32.7148** |  **67.23 KB** |
