@@ -27,34 +27,34 @@ See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
 - .NET 7.0
 - Windows
 - SQL Server 2019 Express on local.
-- LtQuery 0.2.0, Dapper 2.1.15, EFCore 7.0.13
+- LtQuery 0.2.1, Dapper 2.1.15, EFCore 7.0.13
 
 ## SelectOne from Single table
 
 | ORM  | Mean      | Error    | StdDev   | Gen0    | Allocated |
 |-------- |----------:|---------:|---------:|--------:|----------:|
-| ADO.NET |  90.59 μs | 0.582 μs | 0.545 μs |  2.6855 |   5.59 KB |
-| **LtQuery** |  **96.23 μs** | **0.731 μs** | **0.571 μs** |  **2.5635** |   **5.38 KB** |
-| Dapper  | 110.75 μs | 0.440 μs | 0.390 μs |  2.8076 |   5.97 KB |
-| EFCore  | 290.41 μs | 2.543 μs | 2.254 μs | 36.1328 |  74.47 KB |
+| ADO.NET |  88.61 μs | 1.716 μs | 2.462 μs |  87.10 μs |  2.5635 |    5.3 KB |
+| **LtQuery** |  **89.17 μs** | **1.768 μs** | **1.892 μs** |  **89.54 μs** |  **2.5635** |   **5.38 KB** |
+| Dapper  | 108.11 μs | 0.267 μs | 0.250 μs | 108.03 μs |  2.8076 |   5.97 KB |
+| EFCore  | 246.16 μs | 1.330 μs | 1.244 μs | 246.16 μs | 36.1328 |  74.47 KB |
 
 ## SelectMany(20) from Single table
 
 | ORM  | Mean     | Error   | StdDev  | Gen0    | Allocated |
 |-------- |---------:|--------:|--------:|--------:|----------:|
-| ADO.NET | 215.3 μs | 1.19 μs | 1.11 μs | 32.9590 |  67.48 KB |
-| **LtQuery** | **226.7 μs** | **0.99 μs** | **0.93 μs** | **32.7148** |  **67.23 KB** |
-| Dapper  | 243.5 μs | 2.63 μs | 2.46 μs | 34.1797 |  70.02 KB |
-| EFCore  | 465.6 μs | 4.59 μs | 4.29 μs | 69.3359 | 142.51 KB |
+| ADO.NET | 209.2 μs | 2.53 μs | 2.37 μs | 32.7148 |   67.2 KB |
+| **LtQuery** | **212.9 μs** | **1.66 μs** | **1.29 μs** | **32.7148** |  **67.23 KB** |
+| Dapper  | 233.0 μs | 1.29 μs | 1.08 μs | 34.1797 |  70.02 KB |
+| EFCore  | 381.0 μs | 2.47 μs | 2.06 μs | 69.3359 | 142.51 KB |
 
 ## SelectMany(20) from With children
 
 | ORM  | Mean     | Error     | StdDev    | Gen0     | Gen1     | Allocated |
 |-------- |---------:|----------:|----------:|---------:|---------:|----------:|
-| ADO.NET | 4.103 ms | 0.0469 ms | 0.0439 ms | 296.8750 | 195.3125 |   1.44 MB |
-| **LtQuery** | **4.309 ms** | **0.0844 ms** | **0.1263 ms** | **304.6875** | **195.3125** |   **1.44 MB** |
-| Dapper  | 4.426 ms | 0.0481 ms | 0.0402 ms | 351.5625 | 218.7500 |   1.62 MB |
-| EFCore  | 7.258 ms | 0.1214 ms | 0.1136 ms | 554.6875 | 351.5625 |    2.6 MB |
+| ADO.NET | 3.883 ms | 0.0633 ms | 0.0592 ms | 296.8750 | 203.1250 |   1.44 MB |
+| **LtQuery** | **3.906 ms** | **0.0380 ms** | **0.0337 ms** | **296.8750** | **195.3125** |   **1.44 MB** |
+| Dapper  | 4.416 ms | 0.0255 ms | 0.0226 ms | 359.3750 | 187.5000 |   1.62 MB |
+| EFCore  | 6.816 ms | 0.0720 ms | 0.0673 ms | 554.6875 | 367.1875 |    2.6 MB |
 
 # Performance-aware code
 In LtQuery, when the user holds the query object, 
