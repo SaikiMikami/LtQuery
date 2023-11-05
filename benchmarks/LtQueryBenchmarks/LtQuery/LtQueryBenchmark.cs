@@ -21,7 +21,7 @@ class LtQueryBenchmark : AbstractBenchmark
     ILtConnection _connection = default!;
     static Query<Blog> _singleQuery = Lt.Query<Blog>().Where(_ => _.Id == 1).ToImmutable();
     static Query<Blog> _selectSimpleQuery = Lt.Query<Blog>().OrderBy(_ => _.Id).Take(20).ToImmutable();
-    static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Where(_ => _.Id < Lt.Arg<int>("Id")).Include(_ => _.Posts).ToImmutable();
+    static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.Id < Lt.Arg<int>("Id")).ToImmutable();
     public void Setup()
     {
         var provider = Create();
@@ -31,7 +31,7 @@ class LtQueryBenchmark : AbstractBenchmark
         _connection = provider.GetRequiredService<ILtConnection>();
         _connection.Select(_singleQuery);
         _connection.Select(_selectSimpleQuery);
-        _connection.Select(_includeChilrenQuery, new { Id = 1 });
+        _connection.Select(_includeChilrenQuery, new { Id = 20 });
     }
     public void Cleanup()
     {

@@ -1,8 +1,10 @@
-﻿//#define DynamicAssmemblySave
+﻿#if !RELEASE
+//#define DynamicAssmemblySave
+#endif
 
-using LtQuery.Elements;
-using LtQuery.Elements.Values;
 using LtQuery.Metadata;
+using LtQuery.Relational.Nodes;
+using LtQuery.Relational.Nodes.Values;
 using System.Data.Common;
 using System.Reflection.Emit;
 #if DynamicAssmemblySave
@@ -19,7 +21,6 @@ class ReadGenerator<TEntity> where TEntity : class
     {
         _metaService = metaService;
     }
-
     const string _methodName = "Read";
     static int _no = 0;
 
@@ -51,16 +52,18 @@ class ReadGenerator<TEntity> where TEntity : class
 
         var il = method.GetILGenerator();
 
-        var meta = _metaService.GetEntityMeta<TEntity>();
-        var node = new QueryNode(meta, query.Condition, query.Includes, query.OrderBys, query.SkipCount, query.TakeCount);
+        var root = Root.Create(_metaService, query);
 
-        var index = 0;
-        var tree = new QueryTree(node, query.Condition, query.SkipCount, query.TakeCount, ref index);
+        var queryGenerator = new QueryGenerator(null, root.RootQuery);
 
         // loc_0
         var entities = il.DeclareLocal(typeof(List<TEntity>));
         // loc_1
         var reader = il.DeclareLocal(typeof(DbDataReader));
+
+        // var entities = new List<TEntity>();
+        il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Array.Empty<Type>())!);
+        il.EmitStloc(entities);
 
         // using(var reader = command.ExecuteReader())
         il.Emit(OpCodes.Ldarg_0);
@@ -69,11 +72,7 @@ class ReadGenerator<TEntity> where TEntity : class
         // try
         il.BeginExceptionBlock();
         {
-            // var entities = new List<TEntity>();
-            il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Array.Empty<Type>())!);
-            il.EmitStloc(entities);
-
-            tree.EmitSelect(il);
+            queryGenerator.EmitSelect(il);
         }
         // finally
         {
@@ -118,35 +117,30 @@ class ReadGenerator<TEntity> where TEntity : class
 
         var il = method.GetILGenerator();
 
-        var meta = _metaService.GetEntityMeta<TEntity>();
-        var node = new QueryNode(meta, query.Condition, query.Includes, query.OrderBys, query.SkipCount, query.TakeCount);
+        var root = Root.Create(_metaService, query);
 
-        var index = 0;
-        var tree = new QueryTree(node, query.Condition, query.SkipCount, query.TakeCount, ref index);
-
+        var queryGenerator = new QueryGenerator(null, root.RootQuery);
 
         // loc_0
         var entities = il.DeclareLocal(typeof(List<TEntity>));
         // loc_1
         var reader = il.DeclareLocal(typeof(DbDataReader));
 
-        var parameters = getParameters(query);
-        emitParameters<TParameter>(il, parameters);
+        // var entities = new List<TEntity>();
+        il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Array.Empty<Type>())!);
+        il.EmitStloc(entities);
+
+        emitParameters<TParameter>(il, root.AllParameters);
 
         // using(var reader = command.ExecuteReader())
         var finallyEnd = il.DefineLabel();
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(typeof(DbCommand).GetMethod("ExecuteReader", Array.Empty<Type>())!);
         il.EmitStloc(reader);
-        var tryStart = il.BeginExceptionBlock();
+        il.BeginExceptionBlock();
         {
-            // var entities = new List<TEntity>();
-            il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Array.Empty<Type>())!);
-            il.EmitStloc(entities);
 
-            tree.EmitSelect(il);
-
-            il.Emit(OpCodes.Leave_S, finallyEnd);
+            queryGenerator.EmitSelect(il);
         }
         // finally
         {
@@ -177,39 +171,8 @@ class ReadGenerator<TEntity> where TEntity : class
 #endif
     }
 
-    static IReadOnlyList<ParameterValue> getParameters(Query<TEntity> query)
-    {
-        var parameters = new List<ParameterValue>();
-        if (query.Condition != null)
-        {
-            buildParameterValues(parameters, query.Condition);
-        }
-        if (query.SkipCount != null)
-        {
-            buildParameterValues(parameters, query.SkipCount);
-        }
-        if (query.TakeCount != null)
-        {
-            buildParameterValues(parameters, query.TakeCount);
-        }
-        return parameters;
-    }
 
-    static void buildParameterValues(List<ParameterValue> list, IValue src)
-    {
-        switch (src)
-        {
-            case ParameterValue v0:
-                list.Add(v0);
-                break;
-            case IBinaryOperator v1:
-                buildParameterValues(list, v1.Lhs);
-                buildParameterValues(list, v1.Rhs);
-                break;
-        }
-    }
-
-    private void emitParameters<TParameter>(ILGenerator il, IReadOnlyList<ParameterValue> parameters)
+    private void emitParameters<TParameter>(ILGenerator il, IReadOnlyList<ParameterValueData> parameters)
     {
         for (var i = 0; i < parameters.Count; i++)
         {

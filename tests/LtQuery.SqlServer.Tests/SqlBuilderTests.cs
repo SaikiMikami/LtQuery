@@ -156,7 +156,6 @@ namespace LtQuery.SqlServer.Tests
             var actual = _inst.CreateSelectSql(query);
 
             var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0; SELECT t0.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM [Blog] AS t0 INNER JOIN [Post] AS t1 ON t0.[Id] = t1.[BlogId]";
-
             Assert.Equal(expected, actual);
         }
 
@@ -165,8 +164,8 @@ namespace LtQuery.SqlServer.Tests
         {
             var query = Lt.Query<Blog>().Where(_ => _.CategoryId < 5).Include(_ => _.Posts).ToImmutable();
             var actual = _inst.CreateSelectSql(query);
-            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[CategoryId] < 5; SELECT t0.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM [Blog] AS t0 INNER JOIN [Post] AS t1 ON t0.[Id] = t1.[BlogId] WHERE t0.[CategoryId] < 5";
 
+            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[CategoryId] < 5; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT t0.[Id] FROM [Blog] AS t0 WHERE t0.[CategoryId] < 5) AS _ INNER JOIN [Post] AS t1 ON _.[Id] = t1.[BlogId]";
             Assert.Equal(expected, actual);
         }
 
@@ -176,7 +175,7 @@ namespace LtQuery.SqlServer.Tests
             var query = Lt.Query<Blog>().Where(_ => _.CategoryId < Lt.Arg<int>("CategoryId")).Include(_ => _.Posts).ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[CategoryId] < @CategoryId; SELECT t0.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM [Blog] AS t0 INNER JOIN [Post] AS t1 ON t0.[Id] = t1.[BlogId] WHERE t0.[CategoryId] < @CategoryId";
+            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[CategoryId] < @CategoryId; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT t0.[Id] FROM [Blog] AS t0 WHERE t0.[CategoryId] < @CategoryId) AS _ INNER JOIN [Post] AS t1 ON _.[Id] = t1.[BlogId]";
             Assert.Equal(expected, actual);
         }
 
@@ -187,7 +186,6 @@ namespace LtQuery.SqlServer.Tests
             var actual = _inst.CreateSelectSql(query);
 
             var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 ORDER BY t0.[Title]; SELECT t0.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM [Blog] AS t0 INNER JOIN [Post] AS t1 ON t0.[Id] = t1.[BlogId] ORDER BY t0.[Title]";
-
             Assert.Equal(expected, actual);
         }
 
@@ -197,8 +195,7 @@ namespace LtQuery.SqlServer.Tests
             var query = Lt.Query<Blog>().Include(_ => _.Posts).Take("Take").ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            var expected = "SELECT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT TOP (@Take) t0.[Id] FROM [Blog] AS t0) AS _ INNER JOIN [Post] AS t1 ON t1.[BlogId] = _.[Id]";
-
+            var expected = "SELECT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT TOP (@Take) t0.[Id] FROM [Blog] AS t0) AS _ INNER JOIN [Post] AS t1 ON _.[Id] = t1.[BlogId]";
             Assert.Equal(expected, actual);
         }
 
@@ -208,8 +205,7 @@ namespace LtQuery.SqlServer.Tests
             var query = Lt.Query<Blog>().Include(_ => _.Posts).OrderBy(_ => _.Title).Skip("Skip").Take("Take").ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 ORDER BY t0.[Title] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT t0.[Id] FROM [Blog] AS t0 ORDER BY t0.[Title] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY) AS _ INNER JOIN [Post] AS t1 ON t1.[BlogId] = _.[Id]";
-
+            var expected = "SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 ORDER BY t0.[Title] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT t0.[Id] FROM [Blog] AS t0 ORDER BY t0.[Title] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY) AS _ INNER JOIN [Post] AS t1 ON _.[Id] = t1.[BlogId]";
             Assert.Equal(expected, actual);
         }
 
@@ -219,20 +215,37 @@ namespace LtQuery.SqlServer.Tests
             var query = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.DateTime >= Lt.Arg<DateTime>("DateTime")).Take("Take").ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            var expected = "SELECT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT TOP (@Take) t0.[Id] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime) AS _ INNER JOIN [Post] AS t1 ON t1.[BlogId] = _.[Id]";
-
+            var expected = "SELECT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT TOP (@Take) t0.[Id] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime) AS _ INNER JOIN [Post] AS t1 ON _.[Id] = t1.[BlogId]";
             Assert.Equal(expected, actual);
         }
 
+        /*
+         * SELECT DISTINCT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email] 
+         *   FROM [Blog] AS t0 
+         *   INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] 
+         *   INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] 
+         *   LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] 
+         *   WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName; 
+         * SELECT _.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email] 
+         *   FROM (
+         *     SELECT DISTINCT TOP (@Take) t0.[Id] 
+         *       FROM [Blog] AS t0 
+         *       INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] 
+         *       INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] 
+         *       INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] 
+         *       WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName) AS _ 
+         *   INNER JOIN [Post] AS t2 ON _.[Id] = t2.[BlogId] 
+         *   LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
+        */
         [Fact]
         public void CreateSelectSql_WithIncludeChildrenAndComplexInclude()
         {
-            var query = Lt.Query<Blog>().Include(_ => _.User).Include(_ => _.Posts).Include(new[] { "Posts", "User" }).Where(_ => _.CategoryId >= 4).Where(_ => _.Posts.Any(_ => _.UserId == 1)).Take("Take").ToImmutable();
+            var query = Lt.Query<Blog>().Include(_ => _.User).Where(_ => _.CategoryId >= 4).Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).Take("Take").ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            var expected = "SELECT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime; SELECT _.[Id], t1.[Id], t1.[BlogId], t1.[UserId], t1.[DateTime], t1.[Content] FROM (SELECT TOP (@Take) t0.[Id] FROM [Blog] AS t0 WHERE t0.[DateTime] >= @DateTime) AS _ INNER JOIN [Post] AS t1 ON t1.[BlogId] = _.[Id]";
-
+            var expected = "SELECT DISTINCT TOP (@Take) t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email] FROM [Blog] AS t0 INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName; SELECT _.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email] FROM (SELECT DISTINCT TOP (@Take) t0.[Id] FROM [Blog] AS t0 INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName) AS _ INNER JOIN [Post] AS t2 ON _.[Id] = t2.[BlogId] LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]";
             Assert.Equal(expected, actual);
         }
+
     }
 }

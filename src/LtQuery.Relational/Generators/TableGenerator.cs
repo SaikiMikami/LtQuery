@@ -1,4 +1,5 @@
 ﻿using LtQuery.Metadata;
+using LtQuery.Relational.Nodes;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
@@ -6,26 +7,24 @@ using System.Reflection.Emit;
 
 namespace LtQuery.Relational.Generators;
 
-class TableTree
+class TableGenerator
 {
-    public QueryNode Node { get; }
-    public QueryTree Query { get; set; }
-    public TableTree? Parent { get; }
-    public List<TableTree> Children { get; } = new();
-    public TableTree(QueryTree query, TableTree? parent, QueryNode node)
+    public QueryGenerator QueryGenerator { get; }
+    public TableNode2 Table { get; }
+    public TableGenerator? Parent { get; }
+    public IReadOnlyList<TableGenerator> Children { get; }
+    public TableGenerator(TableGenerator? parent, QueryGenerator queryGenerator, TableNode2 table)
     {
-        Query = query;
         Parent = parent;
-        Node = node;
-
-        foreach (var child in node.Children)
+        QueryGenerator = queryGenerator;
+        Table = table;
+        var children = new List<TableGenerator>();
+        foreach (var child in table.Children)
         {
-            if (!child.Navigation!.IsSplited)
-            {
-                var childTree = new TableTree(query, this, child);
-                Children.Add(childTree);
-            }
+            if ((child.TableType & TableType.Select) != 0)
+                children.Add(new(this, queryGenerator, child));
         }
+        Children = children;
     }
 
     public LocalBuilder? Entity { get; private set; }
@@ -34,13 +33,13 @@ class TableTree
     public LocalBuilder? PretId { get; private set; }
 
 
-    Type dictionaryType => typeof(Dictionary<,>).MakeGenericType(Node.Key.Type, Node.Type);
+    Type dictionaryType => typeof(Dictionary<,>).MakeGenericType(Table.Key.Type, Table.Type);
 
     // 変数宣言
     public void CreateLocalAndLabel(ILGenerator il)
     {
         Entity = il.DeclareLocal(Type);
-        if (Node.HasSubQuery() || (Node.Navigation != null && !Node.Navigation.IsUnique))
+        if (HasSubQuery() || (Navigation != null && !Navigation.IsUnique))
         {
             Dictionary = il.DeclareLocal(dictionaryType);
             PretId = il.DeclareLocal(Meta.Key.Type);
@@ -61,6 +60,11 @@ class TableTree
             // var dictionary = new Dictionary<TKey, TEntity>();
             il.Emit(OpCodes.Newobj, dictionaryType.GetConstructor(Array.Empty<Type>())!);
             il.EmitStloc(Dictionary);
+        }
+        if (Entity != null)
+        {
+            il.Emit(OpCodes.Ldnull);
+            il.EmitStloc(Entity);
         }
         if (Parent?.PretId != null)
         {
@@ -83,40 +87,65 @@ class TableTree
     public void EmitCreate(ILGenerator il, ref int index)
     {
         // 重複が混ざっているSELECT
-        if (Node.Navigation != null && !Node.Navigation.IsUnique)
+        if (Navigation != null && !Navigation.IsUnique)
         {
-            // 重複カット
-            // id = dic[(int)reader[0]];
-            emitReadColumn(il, Meta.Key.Type, index);
-            il.EmitStloc(Id);
-
-            // if(preId != id)
+            // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
-            il.EmitLdloc(PretId);
-            il.EmitLdloc(Id);
-            il.Emit(OpCodes.Beq_S, ifEnd);
+            il.EmitLdloc(1);
+            il.EmitLdc_I4(index);
+            il.EmitCall(_IsDBNull);
+            il.Emit(OpCodes.Brtrue_S, ifEnd);
             {
-                // if(!dic.TryGetValue(id, out entity))
-                il.EmitLdloc(Dictionary);
+                // 重複カット
+                // id = dic[(int)reader[0]];
+                emitReadColumn(il, Meta.Key.Type, index);
+                il.EmitStloc(Id);
+
+                // if(preId != id)
+                var ifEnd2 = il.DefineLabel();
+                il.EmitLdloc(PretId);
                 il.EmitLdloc(Id);
-                il.Emit(OpCodes.Ldloca_S, Entity);
-                il.EmitCall(dictionaryType.GetMethod("TryGetValue")!);
-                il.Emit(OpCodes.Brtrue_S, ifEnd);
+                il.Emit(OpCodes.Beq_S, ifEnd2);
                 {
-                    // push key
+                    // if(!dic.TryGetValue(id, out entity))
+                    il.EmitLdloc(Dictionary);
                     il.EmitLdloc(Id);
-
-                    var properties = Meta.Properties;
-                    for (var i = 1; i < properties.Count; i++)
+                    il.Emit(OpCodes.Ldloca_S, Entity);
+                    il.EmitCall(dictionaryType.GetMethod("TryGetValue")!);
+                    il.Emit(OpCodes.Brtrue_S, ifEnd);
                     {
-                        // push (?)reader[i]
-                        var property = properties[i];
-                        emitReadColumn(il, property.Type, index + i);
-                    }
+                        // push key
+                        il.EmitLdloc(Id);
 
-                    // push new TEntity()
-                    il.Emit(OpCodes.Newobj, Type.GetConstructor(properties.Select(_ => _.Type).ToArray())!);
-                    il.EmitStloc(Entity);
+                        var properties = Meta.Properties;
+                        for (var i = 1; i < properties.Count; i++)
+                        {
+                            // push (?)reader[i]
+                            var property = properties[i];
+                            emitReadColumn(il, property.Type, index + i);
+                        }
+
+                        // push new TEntity()
+                        il.Emit(OpCodes.Newobj, Type.GetConstructor(properties.Select(_ => _.Type).ToArray())!);
+                        il.EmitStloc(Entity);
+
+                        // dic.Add(id, entity)
+                        il.EmitLdloc(Dictionary);
+                        il.EmitLdloc(Id);
+                        il.EmitLdloc(Entity);
+                        il.EmitCall(dictionaryType.GetMethod("Add")!);
+
+                    }
+                }
+                il.MarkLabel(ifEnd2);
+
+                // Set Navigations
+                var navigation = Navigation;
+                var preEntity = Parent?.Entity;
+                if (navigation != null && preEntity != null && Entity != null)
+                {
+                    emitSetNavigation(navigation, il, Entity, preEntity);
+                    emitSetNavigation(navigation.Dest, il, preEntity, Entity);
                 }
             }
             il.MarkLabel(ifEnd);
@@ -124,7 +153,7 @@ class TableTree
         else
         {
             // サブクエリ最初のTable
-            if (Parent != null && Query.TopTable == this)
+            if (Parent != null && IsRootTable)
             {
                 if (Parent.Entity == null)
                     throw new InvalidProgramException("Parent.Entity == null");
@@ -156,7 +185,7 @@ class TableTree
                 index++;
             }
 
-            var hasEntities = Query.TopTable == this && Query.Parent == null;
+            var hasEntities = IsRootTable && QueryGenerator.Parent == null;
 
             // entity = new Entity()
             emitCreate(il, index);
@@ -178,21 +207,22 @@ class TableTree
                 il.EmitLdloc(Entity);
                 il.EmitCall(dictionaryType.GetMethod("Add")!);
             }
+
+            // Set Navigations
+            var navigation = Navigation;
+            var preEntity = Parent?.Entity;
+            if (navigation != null && preEntity != null && Entity != null)
+            {
+                emitSetNavigation(navigation, il, Entity, preEntity);
+                emitSetNavigation(navigation.Dest, il, preEntity, Entity);
+            }
         }
         index += PropertyCount;
 
-        // Set Navigations
-        var navigation = Node.Navigation;
-        var preEntity = Parent?.Entity;
-        if (navigation != null && preEntity != null && Entity != null)
-        {
-            emitSetNavigation(navigation, il, Entity, preEntity);
-            emitSetNavigation(navigation.Dest, il, preEntity, Entity);
-        }
-
         foreach (var child in Children)
         {
-            child.EmitCreate(il, ref index);
+            if ((child.Table.TableType & TableType.Select) != 0)
+                child.EmitCreate(il, ref index);
         }
     }
 
@@ -232,7 +262,7 @@ class TableTree
             var ifEnd = il.DefineLabel();
             var elseStart = il.DefineLabel();
 
-            // if(reader.IsDBNull)
+            // if(reader.IsDBNull(index))
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             il.EmitCall(_IsDBNull);
@@ -288,18 +318,7 @@ class TableTree
         }
     }
 
-
-    void emitCreateNavigations(TableTree node, ILGenerator il, ref int index, LocalBuilder preEntity)
-    {
-        var entity = emitCreateNavigation(Node, il, index, preEntity);
-        index += node.Node.PropertyCount;
-        foreach (var child in node.Children)
-        {
-            emitCreateNavigations(child, il, ref index, entity);
-        }
-    }
-
-    LocalBuilder emitCreateNavigation(QueryNode node, ILGenerator il, int index, LocalBuilder preEntity)
+    LocalBuilder emitCreateNavigation(ILGenerator il, int index, LocalBuilder preEntity)
     {
         var entity = il.DeclareLocal(typeof(IDataReader));
 
@@ -307,10 +326,8 @@ class TableTree
         emitCreate(il, index);  // push 1
         il.EmitStloc(entity);
 
-        var navigation = node.Navigation!;
-
-        emitSetNavigation(navigation, il, entity, preEntity);
-        emitSetNavigation(navigation.Dest, il, preEntity, entity);
+        emitSetNavigation(Navigation, il, entity, preEntity);
+        emitSetNavigation(Navigation.Dest, il, preEntity, entity);
 
         return entity;
     }
@@ -339,8 +356,26 @@ class TableTree
     }
 
 
-    public EntityMeta Meta => Node.Meta;
-    public Type Type => Meta.Type;
-    public int PropertyCount => Meta.Properties.Count;
-}
+    public TableGenerator? Search(TableNode2 table)
+    {
+        if (Table == table)
+            return this;
+        foreach (var child in Children)
+        {
+            var result = child.Search(table);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
 
+
+    public EntityMeta Meta => Table.Meta;
+    public Type Type => Table.Type;
+    public PropertyMeta Key => Table.Key;
+    public NavigationMeta? Navigation => Table.Navigation;
+    public int PropertyCount => Table.PropertyCount;
+    public bool HasSubQuery() => Table.HasSubQuery();
+
+    public bool IsRootTable => QueryGenerator.Query.RootTable == Table;
+}

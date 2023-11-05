@@ -22,19 +22,15 @@ internal class Program
         }
     }
 
-    static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Where(_ => _.Id < Lt.Arg<int>("Id")).Include(_ => _.Posts).ToImmutable();
+    static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.Id < Lt.Arg<int>("Id")).ToImmutable();
     static void createReader()
     {
         var provider = create();
         using (var scope = provider.CreateScope())
         {
-            provider = scope.ServiceProvider;
-
-            var connection = provider.GetRequiredService<ILtConnection>();
+            var connection = scope.ServiceProvider.GetRequiredService<ILtConnection>();
 
             var entities = connection.Select(_includeChilrenQuery, new Arg { Id = 20 });
-            if (entities.Count != 1)
-                throw new Exception();
         }
     }
     static IServiceProvider create()
