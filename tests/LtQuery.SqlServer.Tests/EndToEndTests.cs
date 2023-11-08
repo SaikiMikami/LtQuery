@@ -59,4 +59,16 @@ public class EndToEndTests
         blogs = _connection.Select(_selectWithWParameterQuery, new { UserId = 2 });
         Assert.Equal(1050, blogs.Count);
     }
+
+    readonly Query<Blog> _selectWithChildrenHasParameterQuery = Lt.Query<Blog>().Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).ToImmutable();
+
+    [Fact]
+    public void SelectWithChildrenHasParameter()
+    {
+        var blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "YMDOOQPUXJ" });
+
+        Assert.Equal(9943, blogs.Count);
+        blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "CAPRYKIANX" });
+        Assert.Empty(blogs);
+    }
 }

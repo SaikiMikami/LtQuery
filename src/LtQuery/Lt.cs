@@ -3,12 +3,12 @@
 namespace LtQuery;
 
 /// <summary>
-/// Query<> generation with LINQ
+/// Query<> generator using LINQ
 /// </summary>
 public static class Lt
 {
     /// <summary>
-    /// Query<> generation with LINQ
+    /// Query<> generator using LINQ
     /// </summary>
     /// <typeparam name="TEntity">Entity type</typeparam>
     /// <returns></returns>

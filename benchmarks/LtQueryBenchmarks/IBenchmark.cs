@@ -4,9 +4,8 @@ interface IBenchmark
 {
     void Setup();
     void Cleanup();
+    int Raw();
     int LtQuery();
     int Dapper();
-    //int SqlKata();
     int EFCore();
-    int Raw();
 }

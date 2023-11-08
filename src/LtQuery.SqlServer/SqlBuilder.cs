@@ -1,8 +1,6 @@
-﻿using LtQuery.Elements.Values;
-using LtQuery.Metadata;
-using LtQuery.SqlServer.Values;
+﻿using LtQuery.Metadata;
+using LtQuery.Relational.Nodes;
 using System.Text;
-using QueryNode = LtQuery.Relational.Generators.QueryNode;
 
 namespace LtQuery.SqlServer;
 
@@ -16,218 +14,145 @@ class SqlBuilder : Relational.ISqlBuilder
 
     public string CreateCountSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
-        var meta = _metaService.GetEntityMeta<TEntity>();
-        return $"SELECT COUNT(*) FROM [{meta.Type.Name}]";
+        throw new NotImplementedException();
     }
 
     public string CreateSelectSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
-        var meta = _metaService.GetEntityMeta<TEntity>();
-        var node = new QueryNode(meta, query.Condition, query.Includes, query.OrderBys, query.SkipCount, query.TakeCount);
-        var tableIndex = 0;
-        var queryTree = new QueryTree(node, query.Condition, query.SkipCount, query.TakeCount, query.OrderBys, ref tableIndex);
-
         var strb = new StringBuilder();
-        appendSelectSqls(strb, queryTree);
+        var root = Root.Create(_metaService, query);
+        appendSelectSqls(strb, root.RootQuery);
         return strb.ToString();
     }
 
-    static void appendSelectSqls(StringBuilder strb, QueryTree queryTree)
+    static void appendSelectSqls(StringBuilder strb, QueryNode query)
     {
-        appendSelectSql(strb, queryTree);
+        strb.AppendSelectSql(query, null);
 
-        foreach (var child in queryTree.Children)
+        foreach (var child in query.Children)
         {
             strb.Append("; ");
             appendSelectSqls(strb, child);
         }
     }
-    static void appendSelectSql(StringBuilder strb, QueryTree query)
-    {
-        strb.AppendSelectSql(query).ToString();
-    }
-
-    //public IReadOnlyList<string> CreateFirstSql<TEntity>(Query<TEntity> query) where TEntity : class
-    //{
-    //    var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-    //    return CreateSelectSqls(firstQuery);
-    //}
-    //public IReadOnlyList<string> CreateSingleSql<TEntity>(Query<TEntity> query) where TEntity : class
-    //{
-    //    var singleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-    //    return CreateSelectSqls(singleQuery);
-    //}
 }
 
 static class StringBuilderExtensions
 {
-    public static StringBuilder AppendSelectSql(this StringBuilder _this, QueryTree query, bool isSubQuery = false)
+    public static StringBuilder AppendSelectSql(this StringBuilder _this, QueryNode query, TableNode2? joinToTable)
     {
-        var topTable = query.TopTable;
-
-        _this.appendSelectClause(query, isSubQuery);
-        _this.appendFromClause(topTable);
-        _this.appendJoinClause(topTable);
-        _this.appendWhereClause(query, isSubQuery);
+        _this.appendSelectClause(query, joinToTable);
+        _this.appendFromAndJoinClause(query, joinToTable != null);  // サブクエリなら必須
+        _this.appendWhereClause(query);
         _this.appendOrderBys(query);
-        _this.appendTakeAndSkip(query.Skip, query.Take);
+        _this.appendTakeAndSkip(query);
 
         return _this;
     }
 
-
-    static StringBuilder appendSelectClause(this StringBuilder _this, QueryTree query, bool isSubQuery)
+    static StringBuilder appendSelectClause(this StringBuilder _this, QueryNode query, TableNode2? joinToTable)
     {
-        var table = query.TopTable;
-        var parentTable = table.Parent;
-        _this.Append("SELECT");
-        if (parentTable == null && query.Skip == null && query.Take != null)
+        var root = query.Root;
+        _this.Append("SELECT ");
+        if (query.IsJoinMany())
+            _this.Append("DISTINCT ");
+        if (query.IncludeParentType != IncludeParentType.SubQuery && root.SkipCount == null && root.TakeCount != null)
         {
-            _this.Append(" TOP (");
-            query.Take.Append(_this).Append(')');
+            _this.Append("TOP (").AppendValue(root.TakeCount).Append(") ");
         }
 
-        if (isSubQuery)
-        {
-            _this.appendProperty(table, table.Node.Key);
+        var isFirst = true;
 
-        }
-        else
+        if (joinToTable != null)
         {
-            var isFirst = true;
-            if (parentTable != null)
+            // サブクエリの場合joinToTableのKeyのみ返す
+            var node = joinToTable.Node.Parent!;
+            _this.appendProperty(node, node.Key);
+            return _this;
+        }
+
+        if (query.RootTable.Node.Parent != null)
+        {
+            var parenttable = query.RootTable.Node.Parent!;
+            if (query.IncludeParentType == IncludeParentType.Join)
+                _this.appendProperty(parenttable, parenttable.Key);
+            else
+                _this.appendProperty(null, parenttable.Key);
+            isFirst = false;
+        }
+
+        void action(TableNode2 table)
+        {
+            if ((table.TableType & TableType.Select) != 0)
             {
-                switch (query.IncludeParentType)
+                foreach (var property in table.Meta.Properties)
                 {
-                    case IncludeParentType.Join:
-                        _this.appendProperty(parentTable, parentTable.Node.Key);
+                    if (!isFirst)
+                        _this.Append(", ");
+                    else
                         isFirst = false;
-                        break;
-                    case IncludeParentType.SubQuery:
-                        _this.appendProperty(null, parentTable.Node.Key);
-                        isFirst = false;
-                        break;
+
+                    _this.appendProperty(table.Node, property);
                 }
             }
-            _this.appendSelectColumns(table, ref isFirst);
-        }
-        return _this;
-    }
-
-    static StringBuilder appendSelectColumns(this StringBuilder _this, TableTree table, ref bool isFirst)
-    {
-        foreach (var property in table.Node.Meta.Properties)
-        {
-            if (!isFirst)
-                _this.Append(',');
-            else
-                isFirst = false;
-
-            _this.appendProperty(table, property);
-        }
-        foreach (var child in table.Children)
-            _this.appendSelectColumns(child, ref isFirst);
-
-        return _this;
-    }
-
-    static StringBuilder appendFromClause(this StringBuilder _this, TableTree table)
-    {
-        var parent = table.Query.Parent;
-        if (parent != null)
-        {
-            var parentTable = table.Parent ?? throw new InvalidProgramException();
-            switch (table.Query.IncludeParentType)
+            foreach (var child in table.Children)
             {
-                case IncludeParentType.None:
-                    break;
-                case IncludeParentType.Join:
-                    _this.Append(" FROM").appendTable(parentTable);
-                    break;
-                case IncludeParentType.SubQuery:
-                    _this.Append(" FROM (").AppendSelectSql(parent, true).Append(") AS _");
-                    break;
+                action(child);
             }
         }
-        else
-        {
-            _this.Append(" FROM").appendTable(table);
-        }
+        action(query.RootTable);
+        return _this;
 
-        return _this;
     }
-    static StringBuilder appendJoinClause(this StringBuilder _this, TableTree table)
-    {
-        if (table.Parent != null)
-        {
-            switch (table.Query.IncludeParentType)
-            {
-                case IncludeParentType.SubQuery:
-                    _this.appendJoinParentClause(table, table.Parent, table.Node.Navigation.ForeignKey);
-                    break;
-                case IncludeParentType.Join:
-                    _this.appendJoinClause(table.Parent, table, table.Node.Navigation.ForeignKey);
-                    break;
-            }
-        }
-        foreach (var child in table.Children)
-        {
-            _this.appendJoinClause(table, child, child.Node.Navigation.ForeignKey);
-        }
-        return _this;
-    }
-    static StringBuilder appendJoinParentClause(this StringBuilder _this, TableTree table, TableTree parentTable, ForeignKeyMeta foreignKey)
-    {
-        _this.Append(" INNER JOIN").appendTable(table).Append(" ON");
-        if (foreignKey.Parent == table.Node.Meta)
-            _this.appendProperty(table, foreignKey).Append(" =").appendProperty(null, parentTable.Node.Key);
-        else
-            _this.appendProperty(null, table.Node.Key).Append(" =").appendProperty(parentTable, foreignKey);
-        return _this;
-    }
-    static StringBuilder appendJoinClause(this StringBuilder _this, TableTree table, TableTree childTable, ForeignKeyMeta foreignKey)
-    {
-        _this.Append(" INNER JOIN").appendTable(childTable).Append(" ON");
-        if (foreignKey.Parent == table.Node.Meta)
-            _this.appendProperty(table, foreignKey).Append(" =").appendProperty(childTable, childTable.Node.Key);
-        else
-            _this.appendProperty(table, table.Node.Key).Append(" =").appendProperty(childTable, foreignKey);
-        return _this;
-    }
-    static StringBuilder appendOrderBys(this StringBuilder _this, QueryTree query)
-    {
-        var orderBys = query.OrderBys;
-        if (query.IncludeParentType == IncludeParentType.Join)
-        {
-            orderBys = query.Parent.OrderBys.Union(orderBys).ToArray();
-        }
 
-        if (orderBys.Count == 0)
-            return _this;
-
-        _this.Append(" ORDER BY ");
+    static StringBuilder appendFromAndJoinClause(this StringBuilder _this, QueryNode query, bool isRequired)
+    {
         var isFirst = true;
-        foreach (var orderBy in orderBys)
+
+        switch (query.IncludeParentType)
         {
-            if (!isFirst)
+            case IncludeParentType.Join:
+                _this.Append(" FROM ").AppendTable(query.RootTable.Node.Parent!);
+                isFirst = false;
+                break;
+            case IncludeParentType.SubQuery:
+                _this.Append(" FROM (").AppendSelectSql(query.Parent!, query.RootTable).Append(") AS _");
+                isFirst = false;
+                break;
+        }
+
+        void action(TableNode2 table)
+        {
+            if ((table.TableType & TableType.Select) == 0 && (table.TableType & TableType.Join) == 0)
+                return;
+
+            if (isFirst)
             {
-                _this.Append(',');
+                _this.Append(" FROM ").AppendTable(table.Node);
                 isFirst = false;
             }
-            orderBy.Append(_this);
+            else
+            {
+                var node = table.Node;
+                if (query.IncludeParentType == IncludeParentType.SubQuery && table == query.RootTable)
+                    _this.appendJoinParentClause(node.Parent!, node, node.Navigation!.ForeignKey);
+                else
+                    _this.appendJoinClause(node.Parent!, node, node.Navigation!.ForeignKey, isRequired);
+            }
+            foreach (var child in table.Children)
+            {
+                action(child);
+            }
         }
+        action(query.RootTable);
         return _this;
     }
 
-    static StringBuilder appendWhereClause(this StringBuilder _this, QueryTree query, bool isSubQuery)
+    static StringBuilder appendWhereClause(this StringBuilder _this, QueryNode query)
     {
-        var conditions = new List<IBoolValueData>();
-        if (query.IncludeParentType == IncludeParentType.Join)
-        {
-            conditions.AddRange(query.Parent!.Conditions);
-        }
-
-        conditions.AddRange(query.Conditions);
+        if (query.IncludeParentType == IncludeParentType.SubQuery)
+            return _this;
+        var conditions = query.Root.Conditions;
         if (conditions.Count == 0)
             return _this;
         _this.Append(" WHERE ");
@@ -240,88 +165,92 @@ static class StringBuilderExtensions
             }
             isFirst = false;
 
-            condition.Append(_this);
+            _this.AppendValue(condition);
         }
         return _this;
     }
 
-    static StringBuilder appendTakeAndSkip(this StringBuilder _this, IValueData? skip, IValueData? take)
+    static StringBuilder appendOrderBys(this StringBuilder _this, QueryNode query)
     {
+        if (query.IncludeParentType == IncludeParentType.SubQuery)
+            return _this;
+        var orderBys = query.OrderBys;
+        if (orderBys.Count == 0)
+            return _this;
+
+        _this.Append(" ORDER BY ");
+        var isFirst = true;
+        foreach (var orderBy in orderBys)
+        {
+            if (!isFirst)
+            {
+                _this.Append(", ");
+                isFirst = false;
+            }
+            _this.AppendOrderBy(orderBy);
+        }
+        return _this;
+    }
+
+    static StringBuilder appendTakeAndSkip(this StringBuilder _this, QueryNode query)
+    {
+        if (query.IncludeParentType == IncludeParentType.SubQuery)
+            return _this;
+        var skip = query.SkipCount;
         if (skip == null)
             return _this;
+        var take = query.TakeCount;
         if (take != null)
-        {
-            _this.Append(" OFFSET ");
-            skip.Append(_this).Append(" ROWS FETCH NEXT ");
-            take.Append(_this).Append(" ROWS ONLY");
-            return _this;
-        }
+            return _this.Append(" OFFSET ").AppendValue(skip).Append(" ROWS FETCH NEXT ").AppendValue(take).Append(" ROWS ONLY");
         else
-        {
-            _this.Append(" OFFSET ");
-            skip.Append(_this).Append(" ROWS");
-            return _this;
-        }
+            return _this.Append(" OFFSET ").AppendValue(skip).Append(" ROWS");
     }
 
-    static StringBuilder appendTable(this StringBuilder _this, TableTree table)
-        => _this.Append(" [").Append(table.Node.Meta.Name).Append("] AS t").Append(table.Index);
-    static StringBuilder appendProperty(this StringBuilder _this, TableTree? table, PropertyMeta property)
+    static StringBuilder appendJoinParentClause(this StringBuilder _this, TableNode parentTable, TableNode table, ForeignKeyMeta foreignKey)
     {
-        if (table != null)
-            _this.Append(" t").Append(table.Index);
+        _this.Append(" INNER JOIN ").AppendTable(table).Append(" ON ");
+        if (foreignKey.Parent == table.Meta)
+            _this.appendProperty(null, parentTable.Key).Append(" = ").appendProperty(table, foreignKey);
         else
-            _this.Append(" _");
-        _this.Append(".[").Append(property.Name).Append(']');
+            _this.appendProperty(null, foreignKey).Append(" = ").appendProperty(table, table.Key);
         return _this;
     }
-    static StringBuilder appendProperty(this StringBuilder _this, PropertyMeta property)
-        => _this.Append(" _.[").Append(property.Name).Append(']');
-    static StringBuilder appendArgument(this StringBuilder _this, ParameterValue argument)
-        => _this.Append('@').Append(argument.Name);
 
-
-
-    public static IReadOnlyList<TableTree> RelatedTables(IValueData condition)
+    static StringBuilder appendJoinClause(this StringBuilder _this, TableNode table, TableNode childTable, ForeignKeyMeta foreignKey, bool isRequired)
     {
-        var set = new HashSet<TableTree>();
-        relatedTables(set, condition);
-        return set.ToArray();
-    }
-    static void relatedTables(HashSet<TableTree> set, IValueData condition)
-    {
-        switch (condition)
+        if (isRequired)
         {
-            case IBinaryOperatorData v0:
-                relatedTables(set, v0.Lhs);
-                relatedTables(set, v0.Rhs);
-                break;
-            case PropertyValueData v1:
-                set.Add(v1.Table);
-                break;
+            _this.Append(" INNER JOIN ");
         }
+        else
+        {
+            switch (foreignKey.Navigation.NavigationType)
+            {
+                case NavigationType.Single:
+                    _this.Append(" LEFT JOIN ");
+                    break;
+                case NavigationType.SingleNotNull:
+                    _this.Append(" INNER JOIN ");
+                    break;
+                default:
+                    throw new InvalidProgramException();
+            }
+        }
+        _this.AppendTable(childTable).Append(" ON ");
+        if (foreignKey.Parent == table.Meta)
+            _this.appendProperty(table, foreignKey).Append(" = ").appendProperty(childTable, childTable.Key);
+        else
+            _this.appendProperty(table, table.Key).Append(" = ").appendProperty(childTable, foreignKey);
+        return _this;
     }
 
-    static IReadOnlyList<IBoolValueData> relatedValueData(TableTree topTable, IReadOnlyList<IBoolValueData> boolValues)
+    static StringBuilder appendProperty(this StringBuilder _this, TableNode? table, PropertyMeta property)
     {
-        var list = new List<IBoolValueData>();
-        foreach (var boolValue in boolValues)
-        {
-            var relatedTables = RelatedTables(boolValue);
-            if (related(relatedTables, topTable))
-                list.Add(boolValue);
-        }
-        return list;
-    }
-    static bool related(IReadOnlyList<TableTree> tables, TableTree table)
-    {
-        if (tables.Contains(table))
-            return true;
-        foreach (var child in table.Children)
-        {
-            if (related(tables, child))
-                return true;
-        }
-        return false;
+        if (table != null)
+            _this.Append("t").Append(table.Index);
+        else
+            _this.Append("_");
+        _this.Append(".[").Append(property.Name).Append(']');
+        return _this;
     }
 }

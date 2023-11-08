@@ -151,13 +151,13 @@ public static class FluentExtensions
 
 
 
-    static IValue convertToValue(Expression exp)
+    static IValue convertToValue(Expression exp, MemberExpression? parent = default)
     {
         switch (exp)
         {
             case BinaryExpression binary:
-                var lhs = convertToValue(binary.Left);
-                var rhs = convertToValue(binary.Right);
+                var lhs = convertToValue(binary.Left, parent);
+                var rhs = convertToValue(binary.Right, parent);
                 switch (binary.NodeType)
                 {
                     case ExpressionType.Equal:
@@ -183,8 +183,10 @@ public static class FluentExtensions
                 throw new NotSupportedException($"not supported [{exp}]");
             case MemberExpression member:
 
-                Expression? exp2 = member;
                 var list = new List<string>();
+
+                Expression? exp2;
+                exp2 = member;
                 while (exp2 != null)
                 {
                     switch (exp2)
@@ -200,6 +202,25 @@ public static class FluentExtensions
                             throw new ArgumentException("Argument must be PropertyAccess", nameof(exp));
                     }
                 }
+                if (parent != null)
+                {
+                    exp2 = parent;
+                    while (exp2 != null)
+                    {
+                        switch (exp2)
+                        {
+                            case MemberExpression member2:
+                                list.Add(member2.Member.Name);
+                                exp2 = member2.Expression;
+                                break;
+                            case ParameterExpression:
+                                exp2 = null;
+                                break;
+                            default:
+                                throw new ArgumentException("Argument must be PropertyAccess", nameof(exp));
+                        }
+                    }
+                }
                 list.Reverse();
 
                 return convertToProperty(list);
@@ -212,11 +233,7 @@ public static class FluentExtensions
                     var lhs2 = (MemberExpression)methodCall.Arguments[0];
                     var rhs2 = (LambdaExpression)methodCall.Arguments[1];
 
-                    var a = convertToValue(lhs2);
-                    var b = convertToValue(rhs2.Body);
-
-                    // TODO support Any()
-                    throw new NotSupportedException("Any() is not supported");
+                    return convertToValue(rhs2.Body, lhs2);
                 }
                 else
                     throw new ArgumentException("Method calls cannot be used", nameof(exp));

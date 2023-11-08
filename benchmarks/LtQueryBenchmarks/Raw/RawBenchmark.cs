@@ -111,13 +111,7 @@ SELECT _.[Id], t2.[Id], t2.[UserId], t2.[DateTime], t2.[Content]  FROM (SElECT t
                     preId = arg0;
                 }
 
-                int? arg2;
-                if (reader.IsDBNull(2))
-                    arg2 = null;
-                else
-                    arg2 = reader.GetInt32(2);
-
-                var post = new Post(reader.GetInt32(1), arg0, arg2, reader.GetDateTime(3), reader.GetString(4));
+                var post = new Post(reader.GetInt32(1), arg0, (!reader.IsDBNull(2)) ? new int?(reader.GetInt32(2)) : default(int?), reader.GetDateTime(3), reader.GetString(4));
                 post.Blog = blog;
                 blog.Posts.Add(post);
             }

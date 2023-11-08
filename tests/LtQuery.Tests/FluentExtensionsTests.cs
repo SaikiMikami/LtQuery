@@ -149,8 +149,35 @@ public class FluentExtensionsTests
         var lhs = equal.Lhs as PropertyValue;
         Assert.NotNull(lhs);
         Assert.Equal("Name", lhs.Name);
+        if (lhs.Parent == null)
+            throw new Exception();
         Assert.Equal("User", lhs.Parent.Name);
         Assert.Null(lhs.Parent.Parent);
+
+        var rhs = equal.Rhs as ParameterValue;
+        Assert.NotNull(rhs);
+        Assert.Equal("Name", rhs.Name);
+        Assert.Equal(typeof(string), rhs.Type);
+    }
+
+    [Fact]
+    public void Where_IncludedAnyMethod()
+    {
+        var query = Lt.Query<Blog>().Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("Name"))).ToImmutable();
+
+        var equal = query.Condition as EqualOperator;
+        Assert.NotNull(equal);
+
+        var lhs = equal.Lhs as PropertyValue;
+        Assert.NotNull(lhs);
+        Assert.Equal("Name", lhs.Name);
+        if (lhs.Parent == null)
+            throw new Exception();
+        Assert.Equal("User", lhs.Parent.Name);
+        if (lhs.Parent.Parent == null)
+            throw new Exception();
+        Assert.Equal("Posts", lhs.Parent.Parent.Name);
+        Assert.Null(lhs.Parent.Parent.Parent);
 
         var rhs = equal.Rhs as ParameterValue;
         Assert.NotNull(rhs);

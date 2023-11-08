@@ -2,63 +2,50 @@
 using LtQuery.Elements.Values;
 using LtQuery.Metadata;
 
-namespace LtQuery.Relational.Generators;
+namespace LtQuery.Relational.Nodes;
 
-public class QueryNode
+public class TableNode
 {
     public EntityMeta Meta { get; }
     public NavigationMeta? Navigation { get; }
-    public QueryNode? Parent { get; }
-    public List<QueryNode> Children { get; } = new();
-    public QueryNode(EntityMeta meta, IBoolValue? condition, IReadOnlyList<Include> includes, IReadOnlyList<OrderBy> orderBys, IValue? skipCount, IValue? takeCount)
+    public TableNode? Parent { get; }
+    public List<TableNode> Children { get; } = new();
+    public int Index { get; }
+    public TableNode(EntityMeta meta, IBoolValue? condition, IReadOnlyList<Include> includes, IReadOnlyList<OrderBy> orderBys, IValue? skipCount, IValue? takeCount)
     {
         Meta = meta;
         Navigation = null;
         Parent = null;
+        var index = 0;
+        Index = index++;
 
         var includes2 = createIncludeDatas(condition, includes, orderBys, skipCount, takeCount);
 
-
         foreach (var include in includes2)
         {
-            var nav = meta.Navigations.Single(_ => _.Name == include.PropertyName);
-            Children.Add(new(this, nav.Dest, include));
+            var nav = Meta.Navigations.Single(_ => _.Name == include.PropertyName);
+            Children.Add(new(this, nav.Dest, include, ref index));
         }
     }
-    public QueryNode(QueryNode parent, NavigationMeta navigation, IncludeData? include)
+    private TableNode(TableNode parent, NavigationMeta navigation, IncludeData include, ref int index)
     {
         Meta = navigation.Parent;
         Parent = parent;
         Navigation = navigation;
-    }
+        Index = index++;
 
-    public PropertyMeta Key => Meta.Key;
-    public Type Type => Meta.Type;
-    public int PropertyCount => Meta.Properties.Count;
-
-    public bool HasSubQuery() => Children.Any(_ => _.Navigation!.IsSplited);
-
-
-    public class IncludeData
-    {
-        public string PropertyName { get; set; }
-        public List<IncludeData> Includes { get; set; } = new();
-        public IncludeData(string propertyName)
+        if (include != null)
         {
-            PropertyName = propertyName;
-        }
-        public IncludeData(Include src)
-        {
-            PropertyName = src.PropertyName;
-            foreach (var include in src.Includes)
+            foreach (var child in include.Includes)
             {
-                Includes.Add(new(include));
+                var nav = Meta.Navigations.Single(_ => _.Name == child.PropertyName);
+                Children.Add(new(this, nav.Dest, child, ref index));
             }
         }
     }
+
     static IReadOnlyList<IncludeData> createIncludeDatas(IBoolValue? condition, IReadOnlyList<Include> includes, IReadOnlyList<OrderBy> orderBys, IValue? skipCount, IValue? takeCount)
     {
-        var list = includes.ToList();
         var propertyValues = new List<PropertyValue>();
         if (condition != null)
             addPropertyValues(propertyValues, condition);
@@ -113,4 +100,10 @@ public class QueryNode
             includes = include.Includes;
         }
     }
+
+    public Type Type => Meta.Type;
+    public PropertyMeta Key => Meta.Key;
+    public int PropertyCount => Meta.Properties.Count;
+
+    public bool HasSubQuery() => Children.Any(_ => _.Navigation!.IsSplited);
 }
