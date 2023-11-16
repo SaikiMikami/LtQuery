@@ -151,13 +151,13 @@ public static class FluentExtensions
 
 
 
-    static IValue convertToValue(Expression exp, MemberExpression? parent = default)
+    static IValue convertToValue(Expression exp, IReadOnlyList<string>? parentProperty = default)
     {
         switch (exp)
         {
             case BinaryExpression binary:
-                var lhs = convertToValue(binary.Left, parent);
-                var rhs = convertToValue(binary.Right, parent);
+                var lhs = convertToValue(binary.Left, parentProperty);
+                var rhs = convertToValue(binary.Right, parentProperty);
                 switch (binary.NodeType)
                 {
                     case ExpressionType.Equal:
@@ -182,45 +182,7 @@ public static class FluentExtensions
 
                 throw new NotSupportedException($"not supported [{exp}]");
             case MemberExpression member:
-
-                var list = new List<string>();
-
-                Expression? exp2;
-                exp2 = member;
-                while (exp2 != null)
-                {
-                    switch (exp2)
-                    {
-                        case MemberExpression member2:
-                            list.Add(member2.Member.Name);
-                            exp2 = member2.Expression;
-                            break;
-                        case ParameterExpression:
-                            exp2 = null;
-                            break;
-                        default:
-                            throw new ArgumentException("Argument must be PropertyAccess", nameof(exp));
-                    }
-                }
-                if (parent != null)
-                {
-                    exp2 = parent;
-                    while (exp2 != null)
-                    {
-                        switch (exp2)
-                        {
-                            case MemberExpression member2:
-                                list.Add(member2.Member.Name);
-                                exp2 = member2.Expression;
-                                break;
-                            case ParameterExpression:
-                                exp2 = null;
-                                break;
-                            default:
-                                throw new ArgumentException("Argument must be PropertyAccess", nameof(exp));
-                        }
-                    }
-                }
+                var list = convertToPropertyStrings(member, parentProperty);
                 list.Reverse();
 
                 return convertToProperty(list);
@@ -233,7 +195,7 @@ public static class FluentExtensions
                     var lhs2 = (MemberExpression)methodCall.Arguments[0];
                     var rhs2 = (LambdaExpression)methodCall.Arguments[1];
 
-                    return convertToValue(rhs2.Body, lhs2);
+                    return convertToValue(rhs2.Body, convertToPropertyStrings(lhs2, parentProperty));
                 }
                 else
                     throw new ArgumentException("Method calls cannot be used", nameof(exp));
@@ -250,6 +212,31 @@ public static class FluentExtensions
             default:
                 throw new ArgumentException("Argument must be PropertyAccess", nameof(exp));
         }
+    }
+
+    static List<string> convertToPropertyStrings(MemberExpression member, IReadOnlyList<string>? parentProperty)
+    {
+        var list = new List<string>();
+
+        Expression? exp2 = member;
+        while (exp2 != null)
+        {
+            switch (exp2)
+            {
+                case MemberExpression member2:
+                    list.Add(member2.Member.Name);
+                    exp2 = member2.Expression;
+                    break;
+                case ParameterExpression:
+                    exp2 = null;
+                    break;
+                default:
+                    throw new ArgumentException("Argument must be PropertyAccess", nameof(member));
+            }
+        }
+        if (parentProperty != null)
+            list.AddRange(parentProperty);
+        return list;
     }
 
     static readonly MethodInfo _argMethod = typeof(Lt).GetMethod("Arg")!;

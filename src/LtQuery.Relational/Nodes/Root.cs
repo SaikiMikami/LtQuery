@@ -45,7 +45,7 @@ public class Root
 
         AllParameters = getParameters();
         AllProperties = getProperties();
-        RootQuery = new QueryNode(this, RootTable);
+        RootQuery = new QueryNode(this, RootTable, Conditions, OrderBys, SkipCount, TakeCount);
     }
 
     public static Root Create<TEntity>(EntityMetaService metaService, Query<TEntity> query) where TEntity : class
@@ -120,22 +120,22 @@ public class Root
 
     PropertyValueData convertProperty(PropertyValue value)
     {
-        var queue = new Stack<PropertyValue>();
+        var stack = new Stack<PropertyValue>();
         var v = value;
         while (v != null)
         {
-            queue.Push(v);
+            stack.Push(v);
             v = v.Parent;
         }
 
         var node = RootTable;
-        while (queue.Count > 1)
+        while (stack.Count > 1)
         {
-            var v2 = queue.Pop();
+            var v2 = stack.Pop();
             var child = node.Children.SingleOrDefault(_ => _.Navigation.Dest.Name == v2.Name) ?? throw new InvalidProgramException($"[{node.Meta.Type}.{v2.Name}] not found");
             node = child;
         }
-        var name = queue.Pop().Name;
+        var name = stack.Pop().Name;
         var p = node.Meta.Properties.SingleOrDefault(_ => _.Name == name) ?? throw new InvalidProgramException($"[{node.Meta.Type}.{name}] not found");
         return new(node, p);
     }

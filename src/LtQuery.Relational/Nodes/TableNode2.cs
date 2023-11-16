@@ -38,8 +38,9 @@ public class TableNode2
             }
             else
             {
-                if (HasParameterTable(child, Query.AllProperties))
-                    list.Add(new(this, Query, child, TableType.Join));
+                if (Query.Parent == null)
+                    if (HasParameterTable(child, Query.AllProperties))
+                        list.Add(new(this, Query, child, TableType.Join));
             }
         }
         return list;
