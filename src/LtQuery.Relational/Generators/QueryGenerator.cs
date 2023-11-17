@@ -1,5 +1,4 @@
 ﻿using LtQuery.Relational.Nodes;
-using System.Data;
 using System.Data.Common;
 using System.Reflection.Emit;
 
@@ -46,7 +45,7 @@ class QueryGenerator
             // while (reader.Read()) End
             il.MarkLabel(whileEndLabel);
             il.EmitLdloc(1);
-            il.EmitCall(typeof(IDataReader).GetMethod("Read")!);
+            il.EmitCall(typeof(DbDataReader).GetMethod("Read")!);
             il.Emit(OpCodes.Brtrue, whileStartLabel);
         }
 
@@ -58,6 +57,21 @@ class QueryGenerator
 
             child.EmitSelect(il);
         }
+    }
+
+    public TableGenerator? SearchTable(Type type)
+    {
+        var table = RootTable.Search(type);
+        if (table != null)
+            return table;
+
+        if (Parent != null)
+        {
+            table = Parent.SearchTable(type);
+            if (table != null)
+                return table;
+        }
+        return null;
     }
 
     public bool HasSubQuery() => Query.Children.Count != 0;

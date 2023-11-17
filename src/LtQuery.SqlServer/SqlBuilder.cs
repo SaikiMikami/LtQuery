@@ -68,6 +68,12 @@ static class StringBuilderExtensions
             // サブクエリの場合joinToTableのKeyのみ返す
             var node = joinToTable.Node.Parent!;
             _this.appendProperty(node, node.Key);
+
+            if (node != query.RootTable.Node)
+            {
+                node = query.RootTable.Node;
+                _this.Append(", ").appendProperty(node, node.Key).Append(" AS _sort1");
+            }
             return _this;
         }
 
@@ -111,20 +117,25 @@ static class StringBuilderExtensions
             if (query.Parent != null)
                 action0(query.Parent);
 
-            switch (query.IncludeParentType)
+            if (isFirst)
             {
-                case IncludeParentType.Join:
-                    if (isFirst)
+                switch (query.IncludeParentType)
+                {
+                    case IncludeParentType.Join:
                         _this.Append(" FROM ").AppendTable(query.RootTable.Node.Parent!);
-                    else
-                        _this.appendJoinClause(query.Parent!.RootTable.Node);
-                    isFirst = false;
-                    break;
-                case IncludeParentType.SubQuery:
-                    _this.Append(" FROM (").AppendSelectSql(query.Parent!, query.RootTable).Append(") AS t").Append(query.Parent!.RootTable.Index);
-                    isFirst = false;
-                    break;
+                        isFirst = false;
+                        break;
+                    case IncludeParentType.SubQuery:
+                        _this.Append(" FROM (").AppendSelectSql(query.Parent!, query.RootTable).Append(") AS t").Append(query.RootTable.Node.Parent!.Index);
+                        isFirst = false;
+                        break;
+                }
             }
+            else
+            {
+                _this.appendJoinClause(query.Parent!.RootTable.Node);
+            }
+
         }
         action0(query);
 
@@ -141,8 +152,7 @@ static class StringBuilderExtensions
             }
             else
             {
-                var node = table.Node;
-                _this.appendJoinClause(node);
+                _this.appendJoinClause(table.Node);
             }
             foreach (var child in table.Children)
             {
