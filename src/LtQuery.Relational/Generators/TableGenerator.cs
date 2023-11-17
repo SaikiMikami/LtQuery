@@ -27,6 +27,7 @@ class TableGenerator
         Children = children;
     }
 
+    bool isReuse;
     public LocalBuilder? Entity { get; private set; }
     public LocalBuilder? Id { get; private set; }
     public LocalBuilder? Dictionary { get; private set; }
@@ -41,7 +42,26 @@ class TableGenerator
         Entity = il.DeclareLocal(Type);
         if (HasSubQuery() || (Navigation != null && !Navigation.IsUnique))
         {
-            Dictionary = il.DeclareLocal(dictionaryType);
+            if (QueryGenerator.Parent != null)
+            {
+                // Dictionaryを複数に分けない。変数を再利用する。
+                var sameTable = QueryGenerator.Parent.SearchTable(Table.Type);
+                if (sameTable != null && sameTable.Dictionary != null)
+                {
+                    isReuse = true;
+                    Dictionary = sameTable.Dictionary;
+                }
+                else
+                {
+                    isReuse = false;
+                    Dictionary = il.DeclareLocal(dictionaryType);
+                }
+            }
+            else
+            {
+                isReuse = false;
+                Dictionary = il.DeclareLocal(dictionaryType);
+            }
             PretId = il.DeclareLocal(Meta.Key.Type);
             Id = il.DeclareLocal(Meta.Key.Type);
         }
@@ -57,9 +77,12 @@ class TableGenerator
     {
         if (Dictionary != null)
         {
-            // var dictionary = new Dictionary<TKey, TEntity>();
-            il.Emit(OpCodes.Newobj, dictionaryType.GetConstructor(Array.Empty<Type>())!);
-            il.EmitStloc(Dictionary);
+            if (!isReuse)
+            {
+                // var dictionary = new Dictionary<TKey, TEntity>();
+                il.Emit(OpCodes.Newobj, dictionaryType.GetConstructor(Array.Empty<Type>())!);
+                il.EmitStloc(Dictionary);
+            }
         }
         if (Entity != null)
         {
@@ -112,7 +135,7 @@ class TableGenerator
                     il.EmitLdloc(Id);
                     il.Emit(OpCodes.Ldloca_S, Entity);
                     il.EmitCall(dictionaryType.GetMethod("TryGetValue")!);
-                    il.Emit(OpCodes.Brtrue_S, ifEnd);
+                    il.Emit(OpCodes.Brtrue_S, ifEnd2);
                     {
                         // push key
                         il.EmitLdloc(Id);
@@ -363,6 +386,18 @@ class TableGenerator
         foreach (var child in Children)
         {
             var result = child.Search(table);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
+    public TableGenerator? Search(Type type)
+    {
+        if (Table.Type == type)
+            return this;
+        foreach (var child in Children)
+        {
+            var result = child.Search(type);
             if (result != null)
                 return result;
         }

@@ -288,15 +288,19 @@ namespace LtQuery.SqlServer.Tests
          * LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id]
          * INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId]
          * INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
+         * ORDER BY t0.[Id]
          * WHERE t3.[Name] = @UserName OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
          * 
          * SELECT t1.[Id], t2.[Id], t2.[Title], t2.[CategoryId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email]
          * FROM (
-         *   SELECT DISTINCT t1.[Id] FROM [Post] AS t0
+         *   SELECT DISTINCT t1.[Id], t0.[Id] AS _sort1
+         *   FROM [Post] AS t0
          *   LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id]
          *   INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId]
          *   INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
-         *   WHERE t3.[Name] = @UserName OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY
+         *   WHERE t3.[Name] = @UserName
+         *   ORDER BY t0.[Id]
+         *   OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY
          * ) AS t0
          * INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId]
          * INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
@@ -304,10 +308,10 @@ namespace LtQuery.SqlServer.Tests
         [Fact]
         public void CreateSelectSql_WithIncludeChildrenAndComplexInclude3()
         {
-            var query = Lt.Query<Post>().Include(new[] { "User", "Blogs", "User" }).Where(_ => _.User.Blogs.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).Skip("Skip").Take("Take").ToImmutable();
+            var query = Lt.Query<Post>().Include(new[] { "User", "Blogs", "User" }).Where(_ => _.User.Blogs.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            Assert.Equal("SELECT DISTINCT t0.[Id], t0.[BlogId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email] FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; SELECT t1.[Id], t2.[Id], t2.[Title], t2.[CategoryId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email] FROM (SELECT DISTINCT t1.[Id] FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY) AS t0 INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]", actual);
+            Assert.Equal("SELECT DISTINCT t0.[Id], t0.[BlogId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email] FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName ORDER BY t0.[Id] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; SELECT t1.[Id], t2.[Id], t2.[Title], t2.[CategoryId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email] FROM (SELECT DISTINCT t1.[Id], t0.[Id] AS _sort1 FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName ORDER BY t0.[Id] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY) AS t1 INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]", actual);
         }
     }
 }
