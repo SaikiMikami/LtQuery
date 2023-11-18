@@ -8,16 +8,14 @@ public class NavigationMeta
     public Type Type { get; }
     public string Name { get; }
     public ForeignKeyMeta ForeignKey { get; }
-    public bool IsUnique { get; }
     public NavigationType NavigationType { get; }
     public NavigationMeta Dest { get; private set; } = default!;
-    public NavigationMeta(EntityMeta parent, Type type, string name, ForeignKeyMeta foreignKey, bool isUnique, NavigationType navigationType)
+    public NavigationMeta(EntityMeta parent, Type type, string name, ForeignKeyMeta foreignKey, NavigationType navigationType)
     {
         Parent = parent;
         Type = type;
         Name = name;
         ForeignKey = foreignKey;
-        IsUnique = isUnique;
         NavigationType = navigationType;
     }
 

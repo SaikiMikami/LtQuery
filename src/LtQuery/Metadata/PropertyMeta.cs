@@ -1,16 +1,21 @@
-﻿namespace LtQuery.Metadata;
+﻿using System.Reflection;
+
+namespace LtQuery.Metadata;
 
 public class PropertyMeta
 {
     public EntityMeta Parent { get; }
-    public Type Type { get; }
+    public PropertyInfo Info { get; }
     public string Name { get; }
     public bool IsKey { get; }
-    public PropertyMeta(EntityMeta parent, Type type, string name, bool isKey)
+    public PropertyMeta(EntityMeta parent, PropertyInfo info, string name, bool isKey)
     {
         Parent = parent;
-        Type = type;
+        Info = info;
         Name = name;
         IsKey = isKey;
     }
+    public Type Type => Info.PropertyType;
+
+    public bool IsNullable => Type.IsNullable() || Info.IsNullableReference();
 }

@@ -40,7 +40,7 @@ class TableGenerator
     public void CreateLocalAndLabel(ILGenerator il)
     {
         Entity = il.DeclareLocal(Type);
-        if (HasSubQuery() || (Navigation != null && !Navigation.IsUnique))
+        if (HasSubQuery() || (Navigation != null && Navigation.NavigationType == NavigationType.Multi))
         {
             if (QueryGenerator.Parent != null)
             {
@@ -110,7 +110,7 @@ class TableGenerator
     public void EmitCreate(ILGenerator il, ref int index)
     {
         // 重複が混ざっているSELECT
-        if (Navigation != null && !Navigation.IsUnique)
+        if (Navigation != null && Navigation.NavigationType == NavigationType.Multi)
         {
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
@@ -121,7 +121,7 @@ class TableGenerator
             {
                 // 重複カット
                 // id = dic[(int)reader[0]];
-                emitReadColumn(il, Meta.Key.Type, index);
+                emitReadColumn(il, Meta.Key, index);
                 il.EmitStloc(Id);
 
                 // if(preId != id)
@@ -145,7 +145,7 @@ class TableGenerator
                         {
                             // push (?)reader[i]
                             var property = properties[i];
-                            emitReadColumn(il, property.Type, index + i);
+                            emitReadColumn(il, property, index + i);
                         }
 
                         // push new TEntity()
@@ -173,6 +173,40 @@ class TableGenerator
             }
             il.MarkLabel(ifEnd);
         }
+        else if (Navigation != null && Navigation.NavigationType == NavigationType.Single)
+        {
+            // if(!reader.IsDBNull(0))
+            var ifEnd = il.DefineLabel();
+            il.EmitLdloc(1);
+            il.EmitLdc_I4(index);
+            il.EmitCall(_IsDBNull);
+            il.Emit(OpCodes.Brtrue_S, ifEnd);
+            {
+                // entity = new Entity()
+                emitCreate(il, index);
+                if (Dictionary != null)
+                {
+                    if (Id == null)
+                        throw new InvalidProgramException("Key == null");
+                    if (Entity == null)
+                        throw new InvalidProgramException("Entity == null");
+                    il.EmitLdloc(Dictionary);
+                    il.EmitLdloc(Id);
+                    il.EmitLdloc(Entity);
+                    il.EmitCall(dictionaryType.GetMethod("Add")!);
+                }
+
+                // Set Navigations
+                var navigation = Navigation;
+                var preEntity = Parent?.Entity;
+                if (navigation != null && preEntity != null && Entity != null)
+                {
+                    emitSetNavigation(navigation, il, Entity, preEntity);
+                    emitSetNavigation(navigation.Dest, il, preEntity, Entity);
+                }
+            }
+            il.MarkLabel(ifEnd);
+        }
         else
         {
             // サブクエリ最初のTable
@@ -186,7 +220,7 @@ class TableGenerator
                     throw new InvalidProgramException("PreParentId == null");
 
                 // parentId = dic[(int)reader[0]];
-                emitReadColumn(il, Parent.Meta.Key.Type, index + 0);
+                emitReadColumn(il, Parent.Meta.Key, index + 0);
                 il.EmitStloc(Parent.Id);
 
                 // if(preParentId != parentId)
@@ -252,7 +286,7 @@ class TableGenerator
     void emitCreate(ILGenerator il, int index)
     {
         // push (?)reader[0]
-        emitReadColumn(il, Meta.Key.Type, index + 0);
+        emitReadColumn(il, Meta.Key, index + 0);
         if (Id != null)
         {
             il.EmitStloc(Id);
@@ -264,7 +298,7 @@ class TableGenerator
         {
             // push (?)reader[i]
             var property = properties[i];
-            emitReadColumn(il, property.Type, index + i);
+            emitReadColumn(il, property, index + i);
         }
 
         // push new TEntity()
@@ -276,10 +310,11 @@ class TableGenerator
     static MethodInfo _GetInt32 = typeof(DbDataReader).GetMethod("GetInt32")!;
     static MethodInfo _GetString = typeof(DbDataReader).GetMethod("GetString")!;
     static MethodInfo _GetDateTime = typeof(DbDataReader).GetMethod("GetDateTime")!;
-    void emitReadColumn(ILGenerator il, Type type, int index)
+    void emitReadColumn(ILGenerator il, PropertyMeta property, int index)
     {
-        if (type.IsNullable())
+        if (property.Type.IsNullable())
         {
+            var type = property.Type;
             var type2 = type.GenericTypeArguments[0];
             var nullable = il.DeclareLocal(type);
             var ifEnd = il.DefineLabel();
@@ -318,8 +353,41 @@ class TableGenerator
             }
             il.MarkLabel(ifEnd);
         }
+        else if (property.Info.IsNullableReference())
+        {
+            var type = property.Type;
+            var ifEnd = il.DefineLabel();
+            var elseStart = il.DefineLabel();
+
+            // if(reader.IsDBNull(index))
+            il.EmitLdloc(1);
+            il.EmitLdc_I4(index);
+            il.EmitCall(_IsDBNull);
+            il.Emit(OpCodes.Brfalse_S, elseStart);
+            {
+                il.Emit(OpCodes.Ldnull);
+                il.Emit(OpCodes.Br_S, ifEnd);
+            }
+            // else
+            {
+                il.MarkLabel(elseStart);
+                il.EmitLdloc(1);
+                il.EmitLdc_I4(index);
+
+                if (type == typeof(string))
+                {
+                    il.EmitCall(_GetString);
+                }
+                else
+                {
+                    throw new NotSupportedException();
+                }
+            }
+            il.MarkLabel(ifEnd);
+        }
         else
         {
+            var type = property.Type;
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
@@ -339,20 +407,6 @@ class TableGenerator
                 throw new NotSupportedException();
             }
         }
-    }
-
-    LocalBuilder emitCreateNavigation(ILGenerator il, int index, LocalBuilder preEntity)
-    {
-        var entity = il.DeclareLocal(typeof(IDataReader));
-
-        // var entity = new()
-        emitCreate(il, index);  // push 1
-        il.EmitStloc(entity);
-
-        emitSetNavigation(Navigation, il, entity, preEntity);
-        emitSetNavigation(Navigation.Dest, il, preEntity, entity);
-
-        return entity;
     }
 
     void emitSetNavigation(NavigationMeta? navigation, ILGenerator il, LocalBuilder entity, LocalBuilder entity2)

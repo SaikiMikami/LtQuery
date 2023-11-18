@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LtQueryBenchmarks.Migrations
 {
     [DbContext(typeof(TestContext))]
-    [Migration("20231031031137_InitialCreate")]
+    [Migration("20231118062457_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -24,6 +24,20 @@ namespace LtQueryBenchmarks.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("LtQuery.TestData.Account", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Account");
+                });
 
             modelBuilder.Entity("LtQuery.TestData.Blog", b =>
                 {
@@ -146,8 +160,10 @@ namespace LtQueryBenchmarks.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AccountId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -155,6 +171,10 @@ namespace LtQueryBenchmarks.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasFilter("[AccountId] IS NOT NULL");
 
                     b.ToTable("User");
                 });
@@ -212,6 +232,21 @@ namespace LtQueryBenchmarks.Migrations
 
                     b.Navigation("Blog");
 
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LtQuery.TestData.User", b =>
+                {
+                    b.HasOne("LtQuery.TestData.Account", "Account")
+                        .WithOne("User")
+                        .HasForeignKey("LtQuery.TestData.User", "AccountId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("LtQuery.TestData.Account", b =>
+                {
                     b.Navigation("User");
                 });
 

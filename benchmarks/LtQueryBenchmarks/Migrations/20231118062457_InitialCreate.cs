@@ -11,6 +11,18 @@ namespace LtQueryBenchmarks.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "Account",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Password = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Account", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Category",
                 columns: table => new
                 {
@@ -43,11 +55,17 @@ namespace LtQueryBenchmarks.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AccountId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_User", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_User_Account_AccountId",
+                        column: x => x.AccountId,
+                        principalTable: "Account",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -153,6 +171,13 @@ namespace LtQueryBenchmarks.Migrations
                 name: "IX_Post_UserId",
                 table: "Post",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_User_AccountId",
+                table: "User",
+                column: "AccountId",
+                unique: true,
+                filter: "[AccountId] IS NOT NULL");
         }
 
         /// <inheritdoc />
@@ -175,6 +200,9 @@ namespace LtQueryBenchmarks.Migrations
 
             migrationBuilder.DropTable(
                 name: "User");
+
+            migrationBuilder.DropTable(
+                name: "Account");
         }
     }
 }
