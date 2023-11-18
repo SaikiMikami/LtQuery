@@ -22,6 +22,20 @@ namespace LtQueryBenchmarks.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("LtQuery.TestData.Account", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Account");
+                });
+
             modelBuilder.Entity("LtQuery.TestData.Blog", b =>
                 {
                     b.Property<int>("Id")
@@ -143,8 +157,10 @@ namespace LtQueryBenchmarks.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AccountId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -152,6 +168,10 @@ namespace LtQueryBenchmarks.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasFilter("[AccountId] IS NOT NULL");
 
                     b.ToTable("User");
                 });
@@ -209,6 +229,21 @@ namespace LtQueryBenchmarks.Migrations
 
                     b.Navigation("Blog");
 
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LtQuery.TestData.User", b =>
+                {
+                    b.HasOne("LtQuery.TestData.Account", "Account")
+                        .WithOne("User")
+                        .HasForeignKey("LtQuery.TestData.User", "AccountId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("LtQuery.TestData.Account", b =>
+                {
                     b.Navigation("User");
                 });
 

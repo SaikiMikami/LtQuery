@@ -1,5 +1,5 @@
 ﻿#if !RELEASE
-//#define DynamicAssmemblySave
+//#define SaveDynamicAssmembly
 #endif
 
 using LtQuery.Metadata;
@@ -7,7 +7,7 @@ using LtQuery.Relational.Nodes;
 using LtQuery.Relational.Nodes.Values;
 using System.Data.Common;
 using System.Reflection.Emit;
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
 using Lokad.ILPack;
 using System.Reflection;
 #endif
@@ -24,7 +24,7 @@ class ReadGenerator<TEntity> where TEntity : class
     const string _methodName = "Read";
     static int _no = 0;
 
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
     const string _assemblyName = "DynamicAssmembly";
     const string _className = "__Dynamic_A";
     static void save(string path, Type type)
@@ -38,7 +38,7 @@ class ReadGenerator<TEntity> where TEntity : class
 
     public Func<DbCommand, IReadOnlyList<TEntity>> CreateReadSelectFunc(Query<TEntity> query)
     {
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
         var assmName = new AssemblyName(_assemblyName);
         var assm = AssemblyBuilder.DefineDynamicAssembly(assmName, AssemblyBuilderAccess.Run);
         var module = assm.DefineDynamicModule("DynamicModule");
@@ -91,7 +91,7 @@ class ReadGenerator<TEntity> where TEntity : class
         il.EmitLdloc(entities);
         il.Emit(OpCodes.Ret);
 
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
         // Compile
         var type2 = type.CreateType();
         save($@"{Environment.CurrentDirectory}\{_assemblyName}.dll", type2);
@@ -104,7 +104,7 @@ class ReadGenerator<TEntity> where TEntity : class
 
     public Func<DbCommand, TParameter, IReadOnlyList<TEntity>> CreateReadSelectFunc<TParameter>(Query<TEntity> query)
     {
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
         var assmName = new AssemblyName(_assemblyName);
         var assm = AssemblyBuilder.DefineDynamicAssembly(assmName, AssemblyBuilderAccess.Run);
         var module = assm.DefineDynamicModule("DynamicModule");
@@ -160,7 +160,7 @@ class ReadGenerator<TEntity> where TEntity : class
         il.EmitLdloc(entities);
         il.Emit(OpCodes.Ret);
 
-#if DynamicAssmemblySave
+#if SaveDynamicAssmembly
         // Compile
         var type2 = type.CreateType();
         save($@"{Environment.CurrentDirectory}\{_assemblyName}.dll", type2);

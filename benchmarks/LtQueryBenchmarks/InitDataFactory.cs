@@ -16,11 +16,20 @@ namespace LtQueryBenchmarks
                     var user = new User()
                     {
                         Name = rand.NextString(),
-                        Email = rand.NextString(),
+                        Email = i % 4 == 0 ? null : rand.NextString(),
                     };
+                    if (i % 2 == 0)
+                    {
+                        var account = new Account()
+                        {
+                            Id = rand.NextString(),
+                            Password = rand.NextString(),
+                        };
+                        user.Account = account;
+                    }
                     context.Add(user);
+                    context.SaveChanges();
                 }
-                context.SaveChanges();
             }
             using (var context = new TestContext())
             {

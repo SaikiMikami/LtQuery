@@ -16,6 +16,7 @@ namespace LtQueryBenchmarks.EFCore
             modelBuilder.Entity<User>(b =>
             {
                 b.HasKey(_ => _.Id);
+                b.HasOne(_ => _.Account).WithOne(_ => _.User).HasForeignKey<User>(_ => _.AccountId).OnDelete(DeleteBehavior.NoAction);
             });
             modelBuilder.Entity<Category>(b =>
             {
@@ -43,7 +44,10 @@ namespace LtQueryBenchmarks.EFCore
                 b.HasOne(_ => _.Blog).WithMany(_ => _.BlogTags).HasForeignKey(_ => _.BlogId).OnDelete(DeleteBehavior.Cascade);
                 b.HasOne(_ => _.Tag).WithMany(_ => _.BlogTags).HasForeignKey(_ => _.TagId).OnDelete(DeleteBehavior.Cascade);
             });
-
+            modelBuilder.Entity<Account>(b =>
+            {
+                b.HasKey(_ => _.Id);
+            });
         }
     }
 }
