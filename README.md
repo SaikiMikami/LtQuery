@@ -16,7 +16,7 @@ var query = Lt.Query<Blog>().Include(_ => _.Posts)
 // execute query
 var blogs = connection.Select(query, new { UserId = 5 });
 ```
-See [wiki](https://github.com/SaikiMikami/LtQuery/wiki/LtQuery) for details.
+See [wiki](https://github.com/SaikiMikami/LtQuery/wiki) for details.
 
 
 # Performance
