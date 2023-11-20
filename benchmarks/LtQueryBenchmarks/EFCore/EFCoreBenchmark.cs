@@ -12,6 +12,7 @@ class EFCoreBenchmark : AbstractBenchmark
             _selectSingle(context);
             _selectSimple(context).ToArray();
             _selectIncludeChilren(context, 20).ToArray();
+            _selectComplex(context, "PLCJKJKRUK", 10, 20).ToArray();
         }
     }
     static readonly Func<TestContext, Blog> _selectSingle
@@ -20,6 +21,8 @@ class EFCoreBenchmark : AbstractBenchmark
         = EF.CompileQuery((TestContext context) => context.Set<Blog>().OrderBy(_ => _.Id).Take(20).AsNoTracking());
     static readonly Func<TestContext, int, IEnumerable<Blog>> _selectIncludeChilren
         = EF.CompileQuery((TestContext context, int id) => context.Set<Blog>().Include(_ => _.Posts).Where(_ => _.Id < id).AsNoTracking());
+    static readonly Func<TestContext, string, int, int, IEnumerable<Blog>> _selectComplex
+        = EF.CompileQuery((TestContext context, string userName, int skipCount, int takeCount) => context.Set<Blog>().Include(_ => _.User).Include(_ => _.Posts).ThenInclude(_ => _.User).Where(_ => _.Posts.Any(_ => _.User.Name == userName)).OrderBy(_ => _.Id).Skip(skipCount).Take(takeCount).AsNoTracking());
 
     public void Cleanup()
     {
@@ -41,14 +44,13 @@ class EFCoreBenchmark : AbstractBenchmark
 
     public int SelectSimple()
     {
-        var accum = 0;
         Blog[] entities;
-
         using (var context = new TestContext())
         {
             entities = _selectSimple(context).ToArray();
         }
 
+        var accum = 0;
         foreach (var entity in entities)
         {
             AddHashCode(ref accum, entity.Id);
@@ -58,14 +60,31 @@ class EFCoreBenchmark : AbstractBenchmark
 
     public int SelectIncludeChilren()
     {
-        var accum = 0;
         Blog[] entities;
-
         using (var context = new TestContext())
         {
             entities = _selectIncludeChilren(context, 20).ToArray();
         }
 
+        var accum = 0;
+        foreach (var entity in entities)
+        {
+            AddHashCode(ref accum, entity.Id);
+            foreach (var post in entity.Posts)
+                AddHashCode(ref accum, post.Id);
+        }
+        return accum;
+    }
+
+    public int SelectComplex()
+    {
+        Blog[] entities;
+        using (var context = new TestContext())
+        {
+            entities = _selectComplex(context, "PLCJKJKRUK", 10, 20).ToArray();
+        }
+
+        var accum = 0;
         foreach (var entity in entities)
         {
             AddHashCode(ref accum, entity.Id);

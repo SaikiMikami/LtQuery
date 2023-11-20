@@ -8,7 +8,9 @@ namespace LtQuery.Sql.Utils;
 
 public class Arg
 {
-    public int Id { get; init; }
+    public string UserName { get; init; }
+    public int Skip { get; init; }
+    public int Take { get; init; }
 }
 internal class Program
 {
@@ -22,7 +24,7 @@ internal class Program
         }
     }
 
-    static Query<Blog> _includeChilrenQuery = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.Id < Lt.Arg<int>("Id")).ToImmutable();
+    static Query<Blog> _complexQuery = Lt.Query<Blog>().Include(_ => _.User).Include(new[] { "Posts", "User" }).Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
     static void createReader()
     {
         var provider = create();
@@ -30,7 +32,7 @@ internal class Program
         {
             var connection = scope.ServiceProvider.GetRequiredService<ILtConnection>();
 
-            var entities = connection.Select(_includeChilrenQuery, new Arg { Id = 20 });
+            var entities = connection.Select(_complexQuery, new Arg { UserName = "PLCJKJKRUK", Skip = 20, Take = 20 });
         }
     }
     static IServiceProvider create()
