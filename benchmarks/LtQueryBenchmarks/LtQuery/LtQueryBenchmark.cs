@@ -79,7 +79,9 @@ class LtQueryBenchmark : AbstractBenchmark
         return accum;
     }
 
-    static Query<Blog> _complexQuery = Lt.Query<Blog>().Include(_ => _.User).Include(new[] { "Posts", "User" }).Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
+    static Query<Blog> _complexQuery = Lt.Query<Blog>().Include(_ => _.User)
+        .Include(_ => _.Posts).ThenInclude(_ => _.User)
+        .Where(_ => _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
 
     public int SelectComplex()
     {

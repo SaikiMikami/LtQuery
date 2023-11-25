@@ -214,7 +214,7 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
                     preId = id;
                 }
                 Post post = new Post(reader.GetInt32(1), reader.GetInt32(2), (!reader.IsDBNull(3)) ? new int?(reader.GetInt32(3)) : default(int?), reader.GetDateTime(4), reader.GetString(5));
-                post.Blog = blog;
+                post.Blog = blog!;
                 blog!.Posts.Add(post);
                 if (!reader.IsDBNull(6))
                 {

@@ -8,7 +8,7 @@ namespace LtQuery.Sql.Utils;
 
 public class Arg
 {
-    public string UserName { get; init; }
+    public string UserName { get; init; } = default!;
     public int Skip { get; init; }
     public int Take { get; init; }
 }
@@ -24,7 +24,7 @@ internal class Program
         }
     }
 
-    static Query<Blog> _complexQuery = Lt.Query<Blog>().Include(_ => _.User).Include(new[] { "Posts", "User" }).Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
+    static Query<Blog> _complexQuery = Lt.Query<Blog>().Include(_ => _.User).Include<User>(new[] { "Posts", "User" }).Where(_ => _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
     static void createReader()
     {
         var provider = create();

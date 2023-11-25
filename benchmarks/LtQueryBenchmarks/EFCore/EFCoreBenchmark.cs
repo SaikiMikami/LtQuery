@@ -22,7 +22,7 @@ class EFCoreBenchmark : AbstractBenchmark
     static readonly Func<TestContext, int, IEnumerable<Blog>> _selectIncludeChilren
         = EF.CompileQuery((TestContext context, int id) => context.Set<Blog>().Include(_ => _.Posts).Where(_ => _.Id < id).AsNoTracking());
     static readonly Func<TestContext, string, int, int, IEnumerable<Blog>> _selectComplex
-        = EF.CompileQuery((TestContext context, string userName, int skipCount, int takeCount) => context.Set<Blog>().Include(_ => _.User).Include(_ => _.Posts).ThenInclude(_ => _.User).Where(_ => _.Posts.Any(_ => _.User.Name == userName)).OrderBy(_ => _.Id).Skip(skipCount).Take(takeCount).AsNoTracking());
+        = EF.CompileQuery((TestContext context, string userName, int skipCount, int takeCount) => context.Set<Blog>().Include(_ => _.User).Include(_ => _.Posts).ThenInclude(_ => _.User).Where(_ => _.Posts.Any(_ => _.User!.Name == userName)).OrderBy(_ => _.Id).Skip(skipCount).Take(takeCount).AsNoTracking());
 
     public void Cleanup()
     {

@@ -60,7 +60,7 @@ public class EndToEndTests
         Assert.Equal(980, blogs.Count);
     }
 
-    static readonly Query<Blog> _selectWithChildrenHasParameterQuery = Lt.Query<Blog>().Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).ToImmutable();
+    static readonly Query<Blog> _selectWithChildrenHasParameterQuery = Lt.Query<Blog>().Where(_ => _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName"))).ToImmutable();
 
     [Fact]
     public void Select_WithChildrenHasParameter()
@@ -72,7 +72,7 @@ public class EndToEndTests
         Assert.Empty(blogs);
     }
 
-    static readonly Query<Blog> _selectComplexQuery = Lt.Query<Blog>().Include(_ => _.User).Where(_ => _.CategoryId >= 4).Where(_ => _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).Take("Take").ToImmutable();
+    static readonly Query<Blog> _selectComplexQuery = Lt.Query<Blog>().Include(_ => _.User).Where(_ => _.CategoryId >= 4).Where(_ => _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName"))).Take("Take").ToImmutable();
 
     [Fact]
     public void Select_Complex()
@@ -86,7 +86,9 @@ public class EndToEndTests
         Assert.Empty(blogs);
     }
 
-    static readonly Query<Category> _selectComplex2Query = Lt.Query<Category>().Include(new[] { "Blogs", "Posts", "User" }).Where(_ => _.Blogs.Any(_ => _.DateTime < Lt.Arg<DateTime>("DateTime") && _.Posts.Any(_ => _.User.Name == Lt.Arg<string>("UserName")))).Take("Take").ToImmutable();
+    static readonly Query<Category> _selectComplex2Query = Lt.Query<Category>()
+        .Include(_ => _.Blogs).ThenInclude(_ => _.Posts).ThenInclude(_ => _.User)
+        .Where(_ => _.Blogs.Any(_ => _.DateTime < Lt.Arg<DateTime>("DateTime") && _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName")))).Take("Take").ToImmutable();
 
     [Fact]
     public void Select_Complex2()
@@ -98,7 +100,9 @@ public class EndToEndTests
         Assert.Equal(1016, categories[1].Blogs.Count);
     }
 
-    static readonly Query<Post> _selectComplex3Query = Lt.Query<Post>().Include(new[] { "User", "Blogs", "User" }).Where(_ => _.User.Blogs.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
+    static readonly Query<Post> _selectComplex3Query = Lt.Query<Post>()
+        .Include(_ => _.User).ThenInclude(_ => _!.Blogs).ThenInclude(_ => _.User)
+        .Where(_ => _.User!.Blogs.Any(_ => _.User.Name == Lt.Arg<string>("UserName"))).OrderBy(_ => _.Id).Skip("Skip").Take("Take").ToImmutable();
 
     [Fact]
     public void Select_Complex3()
@@ -106,10 +110,16 @@ public class EndToEndTests
         var posts = _connection.Select(_selectComplex3Query, new { Skip = 10, Take = 5, UserName = "PLCJKJKRUK" });
 
         Assert.Equal(5, posts.Count);
+
+        var user = posts[0].User;
         Assert.Equal(192, posts[0].Id);
-        Assert.Equal(10100, posts[0].User.Blogs.Count);
+        Assert.NotNull(user);
+        Assert.Equal(10100, user.Blogs.Count);
+
+        user = posts[2].User;
         Assert.Equal(226, posts[2].Id);
-        Assert.Equal(10100, posts[2].User.Blogs.Count);
+        Assert.NotNull(user);
+        Assert.Equal(10100, user.Blogs.Count);
     }
 
     static readonly Query<Blog> _selectIncludeStringKeyTableQuery = Lt.Query<Blog>().Include(_ => _.User.Account).OrderBy(_ => _.Id).Take(5).ToImmutable();

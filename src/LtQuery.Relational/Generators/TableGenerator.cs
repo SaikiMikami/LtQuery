@@ -112,6 +112,15 @@ class TableGenerator
         // 重複が混ざっているSELECT
         if (Navigation != null && Navigation.NavigationType == NavigationType.Multi)
         {
+            if (Dictionary == null)
+                throw new InvalidProgramException("Dictionary == null");
+            if (Entity == null)
+                throw new InvalidProgramException("Entity == null");
+            if (Id == null)
+                throw new InvalidProgramException("Id == null");
+            if (PretId == null)
+                throw new InvalidProgramException("PretId == null");
+
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
             il.EmitLdloc(1);
@@ -212,6 +221,8 @@ class TableGenerator
             // サブクエリ最初のTable
             if (Parent != null && IsRootTable)
             {
+                if (Parent.Dictionary == null)
+                    throw new InvalidProgramException("Parent.Dictionary == null");
                 if (Parent.Entity == null)
                     throw new InvalidProgramException("Parent.Entity == null");
                 if (Parent.Id == null)
@@ -230,7 +241,7 @@ class TableGenerator
                 il.Emit(OpCodes.Beq_S, ifEnd);
                 {
                     // parentEntity = parentDictionary[parentId]
-                    il.EmitLdloc(Parent.Dictionary!);
+                    il.EmitLdloc(Parent.Dictionary);
                     il.EmitLdloc(Parent.Id);
                     il.EmitCall(dictionaryType.GetProperty("Item", new Type[] { typeof(int) })!.GetGetMethod()!);
                     il.EmitStloc(Parent.Entity);
@@ -248,6 +259,8 @@ class TableGenerator
             emitCreate(il, index);
             if (hasEntities)
             {
+                if (Entity == null)
+                    throw new InvalidProgramException("Entity == null");
                 // entities.Add(entity)
                 il.EmitLdloc(0);
                 il.EmitLdloc(Entity);
@@ -303,6 +316,9 @@ class TableGenerator
 
         // push new TEntity()
         il.Emit(OpCodes.Newobj, Type.GetConstructor(properties.Select(_ => _.Type).ToArray())!);
+
+        if (Entity == null)
+            throw new InvalidProgramException("Entity == null");
         il.EmitStloc(Entity);
     }
 

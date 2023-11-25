@@ -132,7 +132,7 @@ public class Root
         while (stack.Count > 1)
         {
             var v2 = stack.Pop();
-            var child = node.Children.SingleOrDefault(_ => _.Navigation.Dest.Name == v2.Name) ?? throw new InvalidProgramException($"[{node.Meta.Type}.{v2.Name}] not found");
+            var child = node.Children.SingleOrDefault(_ => _.Navigation!.Dest.Name == v2.Name) ?? throw new InvalidProgramException($"[{node.Meta.Type}.{v2.Name}] not found");
             node = child;
         }
         var name = stack.Pop().Name;

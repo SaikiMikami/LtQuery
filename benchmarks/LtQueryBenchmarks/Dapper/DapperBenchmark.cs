@@ -8,7 +8,7 @@ namespace LtQueryBenchmarks.Dapper
     public class DapperBenchmark : AbstractBenchmark
     {
 
-        IDbConnection _connection;
+        IDbConnection _connection = default!;
         public void Setup()
         {
             _connection = new SqlConnection(Constants.ConnectionString);

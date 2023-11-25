@@ -129,13 +129,47 @@ public class FluentExtensionsTests
     }
 
     [Fact]
+    public void ThenBy()
+    {
+        var query = Lt.Query<Blog>().OrderBy(_ => _.DateTime).ThenBy(_ => _.User.Name).ToImmutable();
+
+        Assert.Equal(2, query.OrderBys.Count);
+        var orderBy = query.OrderBys[1];
+        Assert.Equal(OrderByType.Asc, orderBy.Type);
+        Assert.Equal("Name", orderBy.Property.Name);
+        Assert.Equal("User", orderBy.Property.Parent!.Name);
+    }
+
+    [Fact]
+    public void ThenByDescending()
+    {
+        var query = Lt.Query<Blog>().OrderBy(_ => _.DateTime).ThenByDescending(_ => _.User.Name).ToImmutable();
+
+        Assert.Equal(2, query.OrderBys.Count);
+        var orderBy = query.OrderBys[1];
+        Assert.Equal(OrderByType.Desc, orderBy.Type);
+        Assert.Equal("Name", orderBy.Property.Name);
+        Assert.Equal("User", orderBy.Property.Parent!.Name);
+    }
+
+    [Fact]
     public void Include()
     {
         var query = Lt.Query<Blog>().Include(_ => _.User.Zone).ToImmutable();
 
-        var a = query.Includes;
-        Assert.Equal("User", a[0].PropertyName);
-        Assert.Equal("Zone", a[0].Includes[0].PropertyName);
+        var include = query.Includes;
+        Assert.Equal("User", include[0].PropertyName);
+        Assert.Equal("Zone", include[0].Includes[0].PropertyName);
+    }
+
+    [Fact]
+    public void ThenInclude()
+    {
+        var query = Lt.Query<Blog>().Include(_ => _.Posts).ThenInclude(_ => _.User).ToImmutable();
+
+        var include = query.Includes;
+        Assert.Equal("Posts", include[0].PropertyName);
+        Assert.Equal("User", include[0].Includes[0].PropertyName);
     }
 
     [Fact]

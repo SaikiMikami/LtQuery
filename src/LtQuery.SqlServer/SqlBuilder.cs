@@ -58,7 +58,7 @@ static class StringBuilderExtensions
             _this.Append("DISTINCT ");
         if (query.SkipCount == null && query.TakeCount != null)
         {
-            _this.Append("TOP (").AppendValue(root.TakeCount).Append(") ");
+            _this.Append("TOP (").AppendValue(query.TakeCount).Append(") ");
         }
 
         var isFirst = true;
@@ -223,7 +223,7 @@ static class StringBuilderExtensions
 
     static StringBuilder appendJoinClause(this StringBuilder _this, TableNode table)
     {
-        var parent = table.Parent;
+        var parent = table.Parent ?? throw new InvalidProgramException("table.Parent == null");
         var foreignKey = table.Navigation!.ForeignKey;
         switch (foreignKey.Navigation.NavigationType)
         {
