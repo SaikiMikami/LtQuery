@@ -175,10 +175,9 @@ static class StringBuilderExtensions
         foreach (var condition in conditions)
         {
             if (!isFirst)
-            {
                 _this.Append(" AND ");
-            }
-            isFirst = false;
+            else
+                isFirst = false;
 
             _this.AppendValue(condition);
         }
@@ -198,10 +197,10 @@ static class StringBuilderExtensions
         foreach (var orderBy in orderBys)
         {
             if (!isFirst)
-            {
                 _this.Append(", ");
+            else
                 isFirst = false;
-            }
+
             _this.AppendOrderBy(orderBy);
         }
         return _this;
