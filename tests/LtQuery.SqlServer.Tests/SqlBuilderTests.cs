@@ -42,6 +42,24 @@ namespace LtQuery.SqlServer.Tests
         }
 
         [Fact]
+        public void CreateSelectSql_WithThenBy()
+        {
+            var query = Lt.Query<Blog>().OrderBy(_ => _.CategoryId).ThenBy(_ => _.Title).ToImmutable();
+            var actual = _inst.CreateSelectSql(query);
+
+            Assert.Equal("SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 ORDER BY t0.[CategoryId], t0.[Title]", actual);
+        }
+
+        [Fact]
+        public void CreateSelectSql_WithThenByDescending()
+        {
+            var query = Lt.Query<Blog>().OrderBy(_ => _.CategoryId).ThenByDescending(_ => _.Title).ToImmutable();
+            var actual = _inst.CreateSelectSql(query);
+
+            Assert.Equal("SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 ORDER BY t0.[CategoryId], t0.[Title] DESC", actual);
+        }
+
+        [Fact]
         public void CreateSelectSql_WithSkip()
         {
             var query = Lt.Query<Blog>().OrderBy(_ => _.CategoryId).Skip(10).ToImmutable();
