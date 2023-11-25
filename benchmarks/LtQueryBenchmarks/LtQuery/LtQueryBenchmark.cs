@@ -1,7 +1,9 @@
 ﻿using LtQuery;
 using LtQuery.SqlServer;
 using LtQuery.TestData;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.Common;
 
 namespace LtQueryBenchmarks.LtQuery;
 
@@ -11,8 +13,8 @@ class LtQueryBenchmark : AbstractBenchmark
     {
         var collection = new ServiceCollection();
         collection.AddLtQuerySqlServer();
-
-        collection.AddTestBySqlServer();
+        collection.AddTest();
+        collection.AddScoped<DbConnection>(_ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
 
         return collection.BuildServiceProvider();
     }

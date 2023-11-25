@@ -7,7 +7,7 @@ namespace LtQueryBenchmarks.EFCore
     {
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlServer(Constants.ConnectionString, _ => _.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+            optionsBuilder.UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest", _ => _.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             //optionsBuilder.LogTo(Console.WriteLine);
         }
 

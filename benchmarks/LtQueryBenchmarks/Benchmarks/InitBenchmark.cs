@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 
 namespace LtQueryBenchmarks.Benchmarks;
@@ -128,8 +129,8 @@ class InitBenchmark
         {
             var collection = new ServiceCollection();
             collection.AddLtQuerySqlServer();
-
-            collection.AddTestBySqlServer();
+            collection.AddTest();
+            collection.AddScoped<DbConnection>(_ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
 
             return collection.BuildServiceProvider();
         }
