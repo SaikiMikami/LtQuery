@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Title>LtQuery.SqlServer</Title>
-    <PackageTags>orm;sql</PackageTags>
+    <PackageTags>ORM;SQL;SQL Server</PackageTags>
     <Description>a high performance mapper for .Net</Description>
     <Authors>Saiki Mikami</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

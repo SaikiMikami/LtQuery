@@ -1,7 +1,7 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LtQuery.SqlServer.Tests;
+namespace LtQuery.MySql.Tests;
 
 public class EndToEndTests
 {

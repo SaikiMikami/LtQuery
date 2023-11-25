@@ -4,12 +4,12 @@ using LtQuery.Relational.Nodes.Values;
 using LtQuery.Relational.Nodes.Values.Operators;
 using System.Text;
 
-namespace LtQuery.SqlServer;
+namespace LtQuery.MySql;
 
 static class ValueExtensions
 {
     public static StringBuilder AppendTable(this StringBuilder _this, TableNode table)
-        => _this.Append('[').Append(table.Meta.Name).Append("] AS t").Append(table.Index);
+        => _this.Append('`').Append(table.Meta.Name).Append("` AS t").Append(table.Index);
 
     public static StringBuilder AppendValue(this StringBuilder _this, IValueData value)
     {
@@ -49,7 +49,7 @@ static class ValueExtensions
         => _this.Append('@').Append(value.Name);
 
     public static StringBuilder AppendValue(this StringBuilder _this, PropertyValueData value)
-        => _this.Append('t').Append(value.Table.Index).Append(".[").Append(value.Meta.Name).Append("]");
+        => _this.Append('t').Append(value.Table.Index).Append(".`").Append(value.Meta.Name).Append("`");
 
     public static StringBuilder AppendValue(this StringBuilder _this, AndAlsoOperatorData value)
         => _this.AppendValue(value.Lhs).Append(" AND ").AppendValue(value.Rhs);

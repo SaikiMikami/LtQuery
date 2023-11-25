@@ -1,16 +1,16 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LtQuery.SqlServer.Tests;
+namespace LtQuery.MySql.Tests;
 
 class ServiceProviderFactory
 {
     public IServiceProvider Create()
     {
         var collection = new ServiceCollection();
-        collection.AddLtQuerySqlServer();
+        collection.AddLtQueryMyServer();
 
-        collection.AddTestBySqlServer();
+        collection.AddTestByMySql();
 
         return collection.BuildServiceProvider();
     }
