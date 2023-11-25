@@ -12,7 +12,7 @@ class LtQueryBenchmark : AbstractBenchmark
         var collection = new ServiceCollection();
         collection.AddLtQuerySqlServer();
 
-        collection.AddTest();
+        collection.AddTestBySqlServer();
 
         return collection.BuildServiceProvider();
     }

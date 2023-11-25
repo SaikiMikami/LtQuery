@@ -25,6 +25,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LtQueryBenchmarks", "benchm
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LtQuery.TestData", "tests\LtQuery.TestData\LtQuery.TestData.csproj", "{80DE2CA1-1221-45CD-A339-ADAD9EED8504}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LtQuery.MySql", "src\LtQuery.MySql\LtQuery.MySql.csproj", "{E449EE31-5698-49C4-91DC-A9458A8B6E30}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LtQuery.MySql.Tests", "tests\LtQuery.MySql.Tests\LtQuery.MySql.Tests.csproj", "{2D304984-22A1-434B-B282-B9DDE118E694}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +71,14 @@ Global
 		{80DE2CA1-1221-45CD-A339-ADAD9EED8504}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80DE2CA1-1221-45CD-A339-ADAD9EED8504}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80DE2CA1-1221-45CD-A339-ADAD9EED8504}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E449EE31-5698-49C4-91DC-A9458A8B6E30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E449EE31-5698-49C4-91DC-A9458A8B6E30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E449EE31-5698-49C4-91DC-A9458A8B6E30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E449EE31-5698-49C4-91DC-A9458A8B6E30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D304984-22A1-434B-B282-B9DDE118E694}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D304984-22A1-434B-B282-B9DDE118E694}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D304984-22A1-434B-B282-B9DDE118E694}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D304984-22A1-434B-B282-B9DDE118E694}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,6 +90,7 @@ Global
 		{3CDB221D-5091-4097-BA9C-1725698CABAE} = {AED80EEE-4EDE-465C-953D-991A2C447C13}
 		{5596D2C4-46D0-4069-980E-E867DF1B86B7} = {0A0109EA-5F1C-4E87-A447-9ED400E9F8BC}
 		{80DE2CA1-1221-45CD-A339-ADAD9EED8504} = {AED80EEE-4EDE-465C-953D-991A2C447C13}
+		{2D304984-22A1-434B-B282-B9DDE118E694} = {AED80EEE-4EDE-465C-953D-991A2C447C13}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {69612908-99A9-4946-9AED-C783D5BD529E}

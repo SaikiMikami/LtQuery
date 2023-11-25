@@ -8,10 +8,10 @@ public class ServiceProviderFactory
     public IServiceProvider Create()
     {
         var collection = new ServiceCollection();
-        collection.AddLtQuerySql();
+        collection.AddLtQueryRelational();
 
         collection.AddSingleton<ISqlBuilder, TestSqlBuilder>();
-        collection.AddTest();
+        collection.AddTestBySqlServer();
 
         return collection.BuildServiceProvider();
     }

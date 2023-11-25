@@ -155,7 +155,7 @@ namespace LtQuery.SqlServer.Tests
             var query = Lt.Query<Blog>().Where(_ => _.CategoryId == Lt.Arg<int>("CategoryId") || _.Id < 10).ToImmutable();
             var actual = _inst.CreateSelectSql(query);
 
-            Assert.Equal("SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE t0.[CategoryId] = @CategoryId OR t0.[Id] < 10", actual);
+            Assert.Equal("SELECT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content] FROM [Blog] AS t0 WHERE (t0.[CategoryId] = @CategoryId OR t0.[Id] < 10)", actual);
         }
 
         [Fact]
@@ -245,7 +245,8 @@ namespace LtQuery.SqlServer.Tests
          *   INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id]
          *   INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId]
          *   LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
-         *   WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName) AS t0
+         *   WHERE t0.[CategoryId] >= 4 AND t3.[Name] = @UserName
+         * ) AS t0
          * INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId]
          * LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
          */
@@ -307,7 +308,8 @@ namespace LtQuery.SqlServer.Tests
          * INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId]
          * INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
          * ORDER BY t0.[Id]
-         * WHERE t3.[Name] = @UserName OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
+         * WHERE t3.[Name] = @UserName 
+         * OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
          * 
          * SELECT t1.[Id], t2.[Id], t2.[Title], t2.[CategoryId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email], t3.[AccountId]
          * FROM (

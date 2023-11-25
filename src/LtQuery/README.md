@@ -37,3 +37,9 @@ Case using SQL Server.
 ```powershell
 dotnet add package LtQuery.SqlServer
 ```
+
+Case using MySQL/MariaDB.
+
+```powershell
+dotnet add package LtQuery.MySql
+```
