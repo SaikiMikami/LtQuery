@@ -17,7 +17,8 @@ class LtConnection : ILtConnection
         _metaService = metaService;
         _sqlBuilder = sqlBuilder;
         Connection = connection;
-        Connection.Open();
+        if (connection.State == ConnectionState.Closed)
+            Connection.Open();
     }
     public void Dispose()
     {
@@ -168,12 +169,20 @@ class LtConnection : ILtConnection
             return DbType.Int32;
         else if (type == typeof(long) || type == typeof(long?))
             return DbType.Int64;
+        else if (type == typeof(short) || type == typeof(short?))
+            return DbType.Int16;
+        else if (type == typeof(decimal) || type == typeof(decimal?))
+            return DbType.Decimal;
+        else if (type == typeof(byte) || type == typeof(byte?))
+            return DbType.Byte;
         else if (type == typeof(bool) || type == typeof(bool?))
             return DbType.Boolean;
-        else if (type == typeof(string))
-            return DbType.String;
+        else if (type == typeof(Guid) || type == typeof(Guid?))
+            return DbType.Guid;
         else if (type == typeof(DateTime) || type == typeof(DateTime?))
             return DbType.DateTime;
+        else if (type == typeof(string))
+            return DbType.String;
         else
             throw new NotSupportedException();
     }

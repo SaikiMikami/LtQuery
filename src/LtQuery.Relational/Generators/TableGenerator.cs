@@ -322,10 +322,16 @@ class TableGenerator
         il.EmitStloc(Entity);
     }
 
-    static MethodInfo _IsDBNull = typeof(DbDataReader).GetMethod("IsDBNull")!;
-    static MethodInfo _GetInt32 = typeof(DbDataReader).GetMethod("GetInt32")!;
-    static MethodInfo _GetString = typeof(DbDataReader).GetMethod("GetString")!;
-    static MethodInfo _GetDateTime = typeof(DbDataReader).GetMethod("GetDateTime")!;
+    static readonly MethodInfo _IsDBNull = typeof(DbDataReader).GetMethod(nameof(DbDataReader.IsDBNull))!;
+    static readonly MethodInfo _GetInt32 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt32))!;
+    static readonly MethodInfo _GetInt64 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt64))!;
+    static readonly MethodInfo _GetInt16 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt16))!;
+    static readonly MethodInfo _GetDecimal = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetDecimal))!;
+    static readonly MethodInfo _GetByte = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetByte))!;
+    static readonly MethodInfo _GetBoolean = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetBoolean))!;
+    static readonly MethodInfo _GetGuid = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetGuid))!;
+    static readonly MethodInfo _GetDateTime = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetDateTime))!;
+    static readonly MethodInfo _GetString = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetString))!;
     void emitReadColumn(ILGenerator il, PropertyMeta property, int index)
     {
         if (property.Type.IsNullable())
@@ -354,17 +360,23 @@ class TableGenerator
                 il.EmitLdc_I4(index);
 
                 if (type2 == typeof(int))
-                {
                     il.EmitCall(_GetInt32);
-                }
+                else if (type2 == typeof(long))
+                    il.EmitCall(_GetInt64);
+                else if (type2 == typeof(short))
+                    il.EmitCall(_GetInt16);
+                else if (type2 == typeof(decimal))
+                    il.EmitCall(_GetDecimal);
+                else if (type2 == typeof(byte))
+                    il.EmitCall(_GetByte);
+                else if (type2 == typeof(bool))
+                    il.EmitCall(_GetBoolean);
+                else if (type2 == typeof(Guid))
+                    il.EmitCall(_GetGuid);
                 else if (type2 == typeof(DateTime))
-                {
                     il.EmitCall(_GetDateTime);
-                }
                 else
-                {
                     throw new NotSupportedException();
-                }
                 il.Emit(OpCodes.Newobj, type.GetConstructor(new[] { type2 })!);
             }
             il.MarkLabel(ifEnd);
@@ -391,13 +403,9 @@ class TableGenerator
                 il.EmitLdc_I4(index);
 
                 if (type == typeof(string))
-                {
                     il.EmitCall(_GetString);
-                }
                 else
-                {
                     throw new NotSupportedException();
-                }
             }
             il.MarkLabel(ifEnd);
         }
@@ -407,21 +415,25 @@ class TableGenerator
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
-            {
                 il.EmitCall(_GetInt32);
-            }
-            else if (type == typeof(string))
-            {
-                il.EmitCall(_GetString);
-            }
+            else if (type == typeof(long))
+                il.EmitCall(_GetInt64);
+            else if (type == typeof(short))
+                il.EmitCall(_GetInt16);
+            else if (type == typeof(decimal))
+                il.EmitCall(_GetDecimal);
+            else if (type == typeof(byte))
+                il.EmitCall(_GetByte);
+            else if (type == typeof(bool))
+                il.EmitCall(_GetBoolean);
+            else if (type == typeof(Guid))
+                il.EmitCall(_GetGuid);
             else if (type == typeof(DateTime))
-            {
                 il.EmitCall(_GetDateTime);
-            }
+            else if (type == typeof(string))
+                il.EmitCall(_GetString);
             else
-            {
                 throw new NotSupportedException();
-            }
         }
     }
 
