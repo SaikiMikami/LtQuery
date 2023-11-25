@@ -8,7 +8,7 @@ namespace LtQueryBenchmarks.Dapper
     public class DapperBenchmark : AbstractBenchmark
     {
 
-        IDbConnection _connection;
+        IDbConnection _connection = default!;
         public void Setup()
         {
             _connection = new SqlConnection(Constants.ConnectionString);
@@ -44,10 +44,10 @@ namespace LtQueryBenchmarks.Dapper
 
         public int SelectSimple()
         {
-            var accum = 0;
 
             var entities = _connection.Query<Blog>(_selectSimpleSql).ToArray();
 
+            var accum = 0;
             foreach (var entity in entities)
             {
                 AddHashCode(ref accum, entity.Id);
@@ -62,13 +62,90 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content]  FROM (SEl
 
         public int SelectIncludeChilren()
         {
-            var accum = 0;
 
             IReadOnlyList<Blog> entities;
             using (var multi = _connection.QueryMultiple(_selectIncludeChilrenSql, new { Id = 20 }))
             {
                 entities = multi.Read<Blog>().ToArray();
                 var posts = multi.Read<Post>();
+
+                var blogDic = entities.ToDictionary(_ => _.Id);
+                foreach (var post in posts)
+                {
+                    var blog = blogDic[post.BlogId];
+                    blog.Posts.Add(post);
+                    post.Blog = blog;
+                }
+            }
+
+            var accum = 0;
+            foreach (var entity in entities)
+            {
+                AddHashCode(ref accum, entity.Id);
+                foreach (var post in entity.Posts)
+                    AddHashCode(ref accum, post.Id);
+            }
+            return accum;
+        }
+
+
+        const string _selectComplexSql = @"
+SELECT DISTINCT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email], t1.[AccountId] 
+FROM [Blog] AS t0 
+INNER JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] 
+INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] 
+LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] 
+WHERE t3.[Name] = @UserName 
+ORDER BY t0.[Id] 
+OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; 
+
+SELECT t0.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email], t3.[AccountId] 
+FROM (
+  SELECT DISTINCT t0.[Id] 
+  FROM [Blog] AS t0 
+  INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] 
+  LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] 
+  WHERE t3.[Name] = @UserName 
+  ORDER BY t0.[Id] 
+  OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY
+) AS t0 
+INNER JOIN [Post] AS t2 ON t0.[Id] = t2.[BlogId] 
+LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
+";
+
+        public int SelectComplex()
+        {
+            var accum = 0;
+
+            IReadOnlyList<Blog> entities;
+            using (var multi = _connection.QueryMultiple(_selectComplexSql, new { UserName = "PLCJKJKRUK", Skip = 20, Take = 20 }))
+            {
+                var userDic = new Dictionary<int, User>();
+                entities = multi.Read<Blog, User, Blog>((b, u) =>
+                {
+                    if (!userDic.TryGetValue(u.Id, out var user))
+                    {
+                        userDic.Add(u.Id, u);
+                        user = u;
+                    }
+                    b.User = user;
+                    user.Blogs.Add(b);
+                    return b;
+                }).ToArray();
+                var posts = multi.Read<Post, User?, Post>((p, u) =>
+                {
+                    if (u != null)
+                    {
+                        if (!userDic.TryGetValue(u.Id, out var user))
+                        {
+                            userDic.Add(u.Id, u);
+                            user = u;
+                        }
+                        p.User = user;
+                        user.Posts.Add(p);
+                    }
+                    return p;
+                });
 
                 var blogDic = entities.ToDictionary(_ => _.Id);
                 foreach (var post in posts)

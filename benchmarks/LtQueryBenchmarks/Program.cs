@@ -44,6 +44,7 @@ class Program
             typeof(SelectSingleBenchmark),
             typeof(SelectSimpleBenchmark),
             typeof(SelectIncludeChilrenBenchmark),
+            typeof(SelectComplexBenchmark),
         });
         switcher.Run();
     }

@@ -4,76 +4,63 @@ using LtQuery.Elements.Values.Operators;
 
 namespace LtQuery.Fluents;
 
-public class QueryFluent<TEntity> : IQueryAndOrderByFluent<TEntity>, IQueryAndIncludeFluent<TEntity> where TEntity : class
+class QueryFluent<TEntity> : IQueryFluent<TEntity> where TEntity : class
 {
-    IBoolValue? _condition;
-    List<IncludeData> _includes = new();
-    List<OrderBy> _orderBys = new();
-    IValue? _skipCount;
-    IValue? _takeCount;
-    //IncludeData? currentInclude;
+    public IBoolValue? Condition { get; private set; }
+    public List<IncludeData> Includes { get; } = new();
+    public List<OrderBy> OrderBys { get; private set; } = new();
+    public IValue? SkipCount { get; private set; }
+    public IValue? TakeCount { get; private set; }
 
     public IQueryFluent<TEntity> Where(IBoolValue value)
     {
-        if (_condition == null)
-            _condition = value;
+        if (Condition == null)
+            Condition = value;
         else
-            _condition = new AndAlsoOperator(_condition, value);
+            Condition = new AndAlsoOperator(Condition, value);
         return this;
     }
     public IQueryFluent<TEntity> Skip(int count)
     {
-        _skipCount = new ConstantValue($"{count}");
+        SkipCount = new ConstantValue($"{count}");
         return this;
     }
     public IQueryFluent<TEntity> Skip(string parameterName)
     {
-        _skipCount = new ParameterValue(parameterName, typeof(int));
+        SkipCount = new ParameterValue(parameterName, typeof(int));
         return this;
     }
     public IQueryFluent<TEntity> Take(int count)
     {
-        _takeCount = new ConstantValue($"{count}");
+        TakeCount = new ConstantValue($"{count}");
         return this;
     }
     public IQueryFluent<TEntity> Take(string parameterName)
     {
-        _takeCount = new ParameterValue(parameterName, typeof(int));
+        TakeCount = new ParameterValue(parameterName, typeof(int));
         return this;
     }
     public IQueryAndOrderByFluent<TEntity> OrderBy(IReadOnlyList<string> property)
     {
-        _orderBys = new List<OrderBy>()
+        OrderBys = new List<OrderBy>()
         {
             new OrderBy(convertToProperty(property), OrderByType.Asc)
         };
-        return this;
+        return new QueryAndOrderByFluent<TEntity>(this);
     }
 
     public IQueryAndOrderByFluent<TEntity> OrderByDescending(IReadOnlyList<string> property)
     {
-        _orderBys = new List<OrderBy>()
+        OrderBys = new List<OrderBy>()
         {
             new OrderBy(convertToProperty(property), OrderByType.Desc)
         };
-        return this;
+        return new QueryAndOrderByFluent<TEntity>(this);
     }
 
-    //public IQueryAndOrderByFluent<TEntity> ThenBy(string[] property)
-    //{
-    //    _orderBys.Add(new (convertToProperty( property), OrderByType.Asc));
-    //    return this;
-    //}
-
-    //public IQueryAndOrderByFluent<TEntity> ThenByDescending(string[] property)
-    //{
-    //    _orderBys.Add(new(convertToProperty(property), OrderByType.Desc));
-    //    return this;
-    //}
-
-    public IQueryAndIncludeFluent<TEntity> Include(IReadOnlyList<string> property)
+    public IQueryAndIncludeFluent<TEntity, TProperty> Include<TProperty>(IReadOnlyList<string> property) where TProperty : class?
     {
-        List<IncludeData> current = _includes;
+        List<IncludeData> current = Includes;
         foreach (var p in property)
         {
             var include = current.SingleOrDefault(_ => _.PropertyName == p);
@@ -88,19 +75,12 @@ public class QueryFluent<TEntity> : IQueryAndOrderByFluent<TEntity>, IQueryAndIn
                 current = include.Includes;
             }
         }
-        return this;
+        return new QueryAndIncludeFluent<TEntity, TProperty>(this, current);
     }
-    //public IQueryAndIncludeFluent<TEntity> ThenInclude(string[] property)
-    //{
-    //    var include = new IncludeData(convertToProperty(property));
-    //    currentInclude.Includes.Add(include);
-    //    currentInclude = include;
-    //    return this;
-    //}
 
 
     public Query<TEntity> ToImmutable()
-        => new(_condition, new(_includes.Select(_ => _.ToImmutable()).ToArray()), new(_orderBys.ToArray()), _skipCount, _takeCount);
+        => new(Condition, new(Includes.Select(_ => _.ToImmutable()).ToArray()), new(OrderBys.ToArray()), SkipCount, TakeCount);
 
 
     PropertyValue convertToProperty(IReadOnlyList<string> propertyName) => convertToProperty(null, propertyName);
@@ -109,6 +89,6 @@ public class QueryFluent<TEntity> : IQueryAndOrderByFluent<TEntity>, IQueryAndIn
         PropertyValue? value = parent;
         for (var i = 0; i < propertyName.Count; i++)
             value = new PropertyValue(value, propertyName[i]);
-        return value;
+        return value ?? throw new ArgumentException("propertyName.Count == 0");
     }
 }

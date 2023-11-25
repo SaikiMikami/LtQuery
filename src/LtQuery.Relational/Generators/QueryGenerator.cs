@@ -19,7 +19,7 @@ class QueryGenerator
         var list = new List<QueryGenerator>();
         foreach (var child in query.Children)
         {
-            parentTable = RootTable.Search(child.ParentTable) ?? throw new InvalidProgramException();
+            parentTable = RootTable.Search(child.ParentTable!) ?? throw new InvalidProgramException();
             list.Add(new(parentTable, child));
         }
         Children = list;

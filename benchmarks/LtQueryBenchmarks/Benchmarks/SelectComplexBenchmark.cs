@@ -7,7 +7,7 @@ using LtQueryBenchmarks.Raw;
 namespace LtQueryBenchmarks.Benchmarks;
 
 [Config(typeof(BenchmarkConfig))]
-public class SelectIncludeChilrenBenchmark : IBenchmark
+public class SelectComplexBenchmark : IBenchmark
 {
     LtQueryBenchmark _fastORMBenchmark = default!;
     DapperBenchmark _dapperBenchmark = default!;
@@ -40,24 +40,24 @@ public class SelectIncludeChilrenBenchmark : IBenchmark
     [Benchmark]
     public int Raw()
     {
-        return _rawBenchmark.SelectIncludeChilren();
+        return _rawBenchmark.SelectComplex();
     }
 
     [Benchmark]
     public int LtQuery()
     {
-        return _fastORMBenchmark.SelectIncludeChilren();
+        return _fastORMBenchmark.SelectComplex();
     }
 
     [Benchmark]
     public int Dapper()
     {
-        return _dapperBenchmark.SelectIncludeChilren();
+        return _dapperBenchmark.SelectComplex();
     }
 
     [Benchmark]
     public int EFCore()
     {
-        return _eFCoreBenchmark.SelectIncludeChilren();
+        return _eFCoreBenchmark.SelectComplex();
     }
 }

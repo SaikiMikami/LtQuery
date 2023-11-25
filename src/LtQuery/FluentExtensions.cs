@@ -66,89 +66,91 @@ public static class FluentExtensions
 
     public static IQueryAndOrderByFluent<TEntity> OrderBy<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
     {
-        var exp = (MemberExpression)keySelector.Body;
-
-        var list = new List<string>();
-        while (exp != null)
-        {
-            list.Add(exp.Member.Name);
-            exp = exp.Expression as MemberExpression;
-        }
-        list.Reverse();
-
+        var list = convertPropertyToStrings(keySelector);
         return _this.OrderBy(list);
     }
 
     public static IQueryAndOrderByFluent<TEntity> OrderByDescending<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
     {
-        var exp = (MemberExpression)keySelector.Body;
-
-        var list = new List<string>();
-        while (exp != null)
-        {
-            list.Add(exp.Member.Name);
-            exp = exp.Expression as MemberExpression;
-        }
-        list.Reverse();
-
+        var list = convertPropertyToStrings(keySelector);
         return _this.OrderByDescending(list);
     }
 
-    //public static IQueryAndOrderByFluent<TEntity> ThenBy<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
-    //{
-    //    return _this;
-    //}
-    //public static IQueryAndOrderByFluent<TEntity> ThenByDescending<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
-    //{
-    //    return _this;
-    //}
-
-    public static IQueryAndIncludeFluent<TEntity> Include<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> navigationPropertyPath) where TEntity : class
+    public static IQueryAndOrderByFluent<TEntity> ThenBy<TEntity, TProperty>(this IQueryAndOrderByFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
     {
-        var exp = (MemberExpression)navigationPropertyPath.Body;
-
-        var list = new List<string>();
-        while (exp != null)
-        {
-            list.Add(exp.Member.Name);
-            exp = exp.Expression as MemberExpression;
-        }
-        list.Reverse();
-
-        return _this.Include(list);
+        var list = convertPropertyToStrings(keySelector);
+        return _this.ThenBy(list);
+    }
+    public static IQueryAndOrderByFluent<TEntity> ThenByDescending<TEntity, TProperty>(this IQueryAndOrderByFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> keySelector) where TEntity : class
+    {
+        var list = convertPropertyToStrings(keySelector);
+        return _this.ThenByDescending(list);
     }
 
-    //public static IQueryAndIncludeFluent<TEntity> ThenInclude<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> navigationPropertyPath) where TEntity : class
-    //{
-    //    return _this;
-    //}
+    public static IQueryAndIncludeFluent<TEntity, TProperty> Include<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, TProperty>> navigationPropertyPath) where TEntity : class where TProperty : class?
+    {
+        var list = convertPropertyToStrings(navigationPropertyPath);
+        return _this.Include<TProperty>(list);
+    }
+
+    public static IQueryAndIncludeFluent<TEntity, TProperty> Include<TEntity, TProperty>(this IQueryFluent<TEntity> _this, Expression<Func<TEntity, ICollection<TProperty>>> navigationPropertyPath) where TEntity : class where TProperty : class?
+    {
+        var list = convertPropertyToStrings(navigationPropertyPath);
+        return _this.Include<TProperty>(list);
+    }
+
+    public static IQueryAndIncludeFluent<TEntity, TProperty> ThenInclude<TEntity, TPreviousProperty, TProperty>(this IQueryAndIncludeFluent<TEntity, TPreviousProperty> _this, Expression<Func<TPreviousProperty, TProperty?>> navigationPropertyPath) where TEntity : class where TPreviousProperty : class? where TProperty : class?
+    {
+        var list = convertPropertyToStrings(navigationPropertyPath);
+        return _this.ThenInclude<TProperty>(list);
+    }
+
+    public static IQueryAndIncludeFluent<TEntity, TProperty> ThenInclude<TEntity, TPreviousProperty, TProperty>(this IQueryAndIncludeFluent<TEntity, ICollection<TPreviousProperty>> _this, Expression<Func<TPreviousProperty, TProperty>> navigationPropertyPath) where TEntity : class where TPreviousProperty : class? where TProperty : class?
+    {
+        var list = convertPropertyToStrings(navigationPropertyPath);
+        return _this.ThenInclude<TProperty>(list);
+    }
 
     #endregion
 
     #region ILtConnection
 
-    public static int Count<TEntity>(this ILtConnection _this, QueryFluent<TEntity> query) where TEntity : class
+    public static int Count<TEntity>(this ILtConnection _this, IQueryFluent<TEntity> query) where TEntity : class
         => _this.Count(query.ToImmutable());
-    public static int Count<TEntity, TParameter>(this ILtConnection _this, QueryFluent<TEntity> query, TParameter values) where TEntity : class
+    public static int Count<TEntity, TParameter>(this ILtConnection _this, IQueryFluent<TEntity> query, TParameter values) where TEntity : class
         => _this.Count(query.ToImmutable(), values);
 
-    public static IEnumerable<TEntity> Select<TEntity>(this ILtConnection _this, QueryFluent<TEntity> query) where TEntity : class
+    public static IEnumerable<TEntity> Select<TEntity>(this ILtConnection _this, IQueryFluent<TEntity> query) where TEntity : class
         => _this.Select(query.ToImmutable());
-    public static IEnumerable<TEntity> Select<TEntity, TParameter>(this ILtConnection _this, QueryFluent<TEntity> query, TParameter values) where TEntity : class
+    public static IEnumerable<TEntity> Select<TEntity, TParameter>(this ILtConnection _this, IQueryFluent<TEntity> query, TParameter values) where TEntity : class
         => _this.Select(query.ToImmutable(), values);
 
-    public static TEntity Single<TEntity>(this ILtConnection _this, QueryFluent<TEntity> query) where TEntity : class
+    public static TEntity Single<TEntity>(this ILtConnection _this, IQueryFluent<TEntity> query) where TEntity : class
         => _this.Single(query.ToImmutable());
-    public static TEntity Single<TEntity, TParameter>(this ILtConnection _this, QueryFluent<TEntity> query, TParameter values) where TEntity : class
+    public static TEntity Single<TEntity, TParameter>(this ILtConnection _this, IQueryFluent<TEntity> query, TParameter values) where TEntity : class
         => _this.Single(query.ToImmutable(), values);
 
-    public static TEntity First<TEntity>(this ILtConnection _this, QueryFluent<TEntity> query) where TEntity : class
+    public static TEntity First<TEntity>(this ILtConnection _this, IQueryFluent<TEntity> query) where TEntity : class
         => _this.First(query.ToImmutable());
-    public static TEntity First<TEntity, TParameter>(this ILtConnection _this, QueryFluent<TEntity> query, TParameter values) where TEntity : class
+    public static TEntity First<TEntity, TParameter>(this ILtConnection _this, IQueryFluent<TEntity> query, TParameter values) where TEntity : class
         => _this.First(query.ToImmutable(), values);
 
     #endregion
 
+    static List<string> convertPropertyToStrings<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> exp) where TEntity : class?
+    {
+        var exp2 = (MemberExpression)exp.Body;
+
+        var list = new List<string>();
+        while (exp2 != null)
+        {
+            list.Add(exp2.Member.Name);
+            exp2 = exp2.Expression as MemberExpression;
+        }
+        list.Reverse();
+        return list;
+
+    }
 
 
     static IValue convertToValue(Expression exp, IReadOnlyList<string>? parentProperty = default)

@@ -1,6 +1,6 @@
 ﻿namespace LtQuery.Fluents;
 
-public interface IQueryAndIncludeFluent<TEntity> : IQueryFluent<TEntity> where TEntity : class
+public interface IQueryAndIncludeFluent<TEntity, out TPreviousProperty> : IQueryFluent<TEntity> where TEntity : class where TPreviousProperty : class?
 {
-    //IQueryAndIncludeFluent<TEntity> ThenInclude(string[] property);
+    IQueryAndIncludeFluent<TEntity, TProperty> ThenInclude<TProperty>(IReadOnlyList<string> property) where TProperty : class?;
 }

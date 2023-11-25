@@ -48,7 +48,7 @@ public class QueryNode
         IncludeParentType = getIncludeParentType(Parent);
         if (IncludeParentType == IncludeParentType.Join)
         {
-            Conditions = Parent.Conditions;
+            Conditions = Parent!.Conditions;
             OrderBys = Parent.OrderBys;
             SkipCount = Parent.SkipCount;
             TakeCount = Parent.TakeCount;

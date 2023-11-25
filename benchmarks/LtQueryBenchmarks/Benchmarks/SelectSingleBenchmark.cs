@@ -9,10 +9,10 @@ namespace LtQueryBenchmarks.Benchmarks;
 [Config(typeof(BenchmarkConfig))]
 public class SelectSingleBenchmark : IBenchmark
 {
-    LtQueryBenchmark _fastORMBenchmark;
-    DapperBenchmark _dapperBenchmark;
-    EFCoreBenchmark _eFCoreBenchmark;
-    RawBenchmark _rawBenchmark;
+    LtQueryBenchmark _fastORMBenchmark = default!;
+    DapperBenchmark _dapperBenchmark = default!;
+    EFCoreBenchmark _eFCoreBenchmark = default!;
+    RawBenchmark _rawBenchmark = default!;
 
     [GlobalSetup]
     public void Setup()
