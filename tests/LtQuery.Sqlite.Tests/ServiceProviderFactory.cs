@@ -1,18 +1,18 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
-using MySqlConnector;
 using System.Data.Common;
+using System.Data.SQLite;
 
-namespace LtQuery.MySql.Tests;
+namespace LtQuery.Sqlite.Tests;
 
 class ServiceProviderFactory
 {
     public IServiceProvider Create()
     {
         var collection = new ServiceCollection();
-        collection.AddLtQueryMySql();
+        collection.AddLtQuerySqlite();
         collection.AddTest();
-        collection.AddScoped<DbConnection>(_ => new MySqlConnection(@"server=localhost;user=ltquerytest;database=ltquerytest"));
+        collection.AddScoped<DbConnection>(_ => new SQLiteConnection(@"Data Source=LtQueryTest.db"));
 
         return collection.BuildServiceProvider();
     }

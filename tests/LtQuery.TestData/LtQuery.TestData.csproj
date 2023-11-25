@@ -11,11 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.2" />
-    <PackageReference Include="MySqlConnector" Version="2.3.1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\LtQuery.Relational\LtQuery.Relational.csproj" />
   </ItemGroup>
 

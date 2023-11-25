@@ -1,7 +1,8 @@
-﻿// See https://aka.ms/new-console-template for more information
-using LtQuery.SqlServer;
+﻿using LtQuery.SqlServer;
 using LtQuery.TestData;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.Common;
 
 namespace LtQuery.Sql.Utils;
 
@@ -40,7 +41,8 @@ internal class Program
         var collection = new ServiceCollection();
         collection.AddLtQuerySqlServer();
 
-        collection.AddTestBySqlServer();
+        collection.AddTest();
+        collection.AddScoped<DbConnection>(_ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
 
         return collection.BuildServiceProvider();
     }

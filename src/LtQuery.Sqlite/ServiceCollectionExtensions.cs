@@ -1,11 +1,11 @@
 ﻿using LtQuery.Relational;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LtQuery.MySql;
+namespace LtQuery.Sqlite;
 
 public static class ServiceCollectionExtensions
 {
-    public static void AddLtQueryMySql(this IServiceCollection _this)
+    public static void AddLtQuerySqlite(this IServiceCollection _this)
     {
         _this.AddLtQueryRelational();
         _this.AddSingleton<ISqlBuilder, SqlBuilder>();
