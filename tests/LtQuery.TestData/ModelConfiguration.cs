@@ -2,7 +2,7 @@
 
 namespace LtQuery.TestData;
 
-class ModelConfiguration : IModelConfiguration
+public class ModelConfiguration : IModelConfiguration
 {
     public void Configure(IModelBuilder modelBuilder)
     {

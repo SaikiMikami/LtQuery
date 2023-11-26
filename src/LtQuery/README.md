@@ -14,7 +14,7 @@ Instead, call giving a diverty, tiny query object.
 var collection = new ServiceCollection();
 collection.AddLtQuerySqlServer();
 collection.AddSingleton<IModelConfiguration, ModelConfiguration>();	// User-defined ModelConfiguration
-collection.AddScoped<DbConnection>(_ => new SqlConnection(/*ConnectionString*/);
+collection.AddScoped<DbConnection>(_ => new SqlConnection(/*ConnectionString*/));
 var provider = collection.BuildServiceProvider();
 
 using(var scope = provider.CreateScope())
@@ -42,4 +42,10 @@ Case using MySQL/MariaDB.
 
 ```powershell
 dotnet add package LtQuery.MySql
+```
+
+Case using SQLite.
+
+```powershell
+dotnet add package LtQuery.Sqlite
 ```

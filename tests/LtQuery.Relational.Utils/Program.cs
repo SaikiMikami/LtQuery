@@ -2,7 +2,6 @@
 using LtQuery.TestData;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
-using System.Data.Common;
 
 namespace LtQuery.Sql.Utils;
 
@@ -39,10 +38,7 @@ internal class Program
     static IServiceProvider create()
     {
         var collection = new ServiceCollection();
-        collection.AddLtQuerySqlServer();
-
-        collection.AddTest();
-        collection.AddScoped<DbConnection>(_ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
+        collection.AddLtQuerySqlServer(new ModelConfiguration(), _ => new SqlConnection(Constants.SqlServerConnectionString));
 
         return collection.BuildServiceProvider();
     }
