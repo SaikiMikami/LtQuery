@@ -7,7 +7,7 @@ class EntityTypeBuilder<TEntity> : IEntityTypeBuilder<TEntity>, IEntityTypeBuild
 {
     public ModelBuilder Parent { get; }
     readonly List<Action> _initActions = new();
-    public EntityMeta Meta { get; } = new EntityMeta(typeof(TEntity));
+    public EntityMeta Meta { get; } = new(typeof(TEntity));
     public EntityTypeBuilder(ModelBuilder parent)
     {
         Parent = parent;
@@ -37,38 +37,42 @@ class EntityTypeBuilder<TEntity> : IEntityTypeBuilder<TEntity>, IEntityTypeBuild
 
         Meta.Properties.Add(foreignKey);
 
-        NavigationMeta navigation;
+        void action()
         {
-            var exp = (MemberExpression)navigationExpression.Body;
-            var member = exp.Member;
-            var type = exp.Type;
-            var name = member.Name;
-            var propertyInfo = (PropertyInfo)member;
+            NavigationMeta navigation;
+            {
+                var exp = (MemberExpression)navigationExpression.Body;
+                var member = exp.Member;
+                var type = exp.Type;
+                var name = member.Name;
+                var propertyInfo = (PropertyInfo)member;
 
-            NavigationType navigationType;
-            if (foreignKey.Type.IsNullable() || propertyInfo.IsNullableReference())
-                navigationType = NavigationType.Single;
-            else
-                navigationType = NavigationType.SingleNotNull;
+                NavigationType navigationType;
+                if (foreignKey.Type.IsNullable() || propertyInfo.IsNullableReference())
+                    navigationType = NavigationType.Single;
+                else
+                    navigationType = NavigationType.SingleNotNull;
 
-            navigation = new NavigationMeta(Meta, type, name, foreignKey, navigationType);
-            Meta.Navigations.Add(navigation);
+                navigation = new NavigationMeta(Meta, type, name, foreignKey, navigationType);
+                Meta.Navigations.Add(navigation);
+            }
+            var destMeta = Parent.EntityTypeBuilders[typeof(TEntity2)].Meta;
+            NavigationMeta destNavigation;
+            {
+                var exp = (MemberExpression)destNavigationExpression.Body;
+                var member = exp.Member;
+                var type = exp.Type;
+                var name = member.Name;
+
+                destNavigation = new NavigationMeta(destMeta, type, name, foreignKey, NavigationType.Single);
+                destMeta.Navigations.Add(destNavigation);
+            }
+
+            foreignKey.Init(destMeta, navigation, destNavigation);
+            navigation.Init(destNavigation);
+            destNavigation.Init(navigation);
         }
-        var destMeta = Parent.EntityTypeBuilders[typeof(TEntity2)].Meta;
-        NavigationMeta destNavigation;
-        {
-            var exp = (MemberExpression)destNavigationExpression.Body;
-            var member = exp.Member;
-            var type = exp.Type;
-            var name = member.Name;
-
-            destNavigation = new NavigationMeta(destMeta, type, name, foreignKey, NavigationType.Single);
-            destMeta.Navigations.Add(destNavigation);
-        }
-
-        foreignKey.Init(destMeta, navigation, destNavigation);
-        navigation.Init(destNavigation);
-        destNavigation.Init(navigation);
+        _initActions.Add(action);
     }
 
     // 1 to *
@@ -85,38 +89,41 @@ class EntityTypeBuilder<TEntity> : IEntityTypeBuilder<TEntity>, IEntityTypeBuild
 
         Meta.Properties.Add(foreignKey);
 
-        NavigationMeta navigation;
+        void action()
         {
-            var exp = (MemberExpression)navigationExpression.Body;
-            var member = exp.Member;
-            var type = exp.Type;
-            var name = member.Name;
-            var propertyInfo = (PropertyInfo)member;
+            NavigationMeta navigation;
+            {
+                var exp = (MemberExpression)navigationExpression.Body;
+                var member = exp.Member;
+                var type = exp.Type;
+                var name = member.Name;
+                var propertyInfo = (PropertyInfo)member;
 
-            NavigationType navigationType;
-            if (foreignKey.Type.IsNullable() || propertyInfo.IsNullableReference())
-                navigationType = NavigationType.Single;
-            else
-                navigationType = NavigationType.SingleNotNull;
+                NavigationType navigationType;
+                if (foreignKey.Type.IsNullable() || propertyInfo.IsNullableReference())
+                    navigationType = NavigationType.Single;
+                else
+                    navigationType = NavigationType.SingleNotNull;
 
-            navigation = new NavigationMeta(Meta, type, name, foreignKey, navigationType);
-            Meta.Navigations.Add(navigation);
+                navigation = new NavigationMeta(Meta, type, name, foreignKey, navigationType);
+                Meta.Navigations.Add(navigation);
+            }
+            var destMeta = Parent.EntityTypeBuilders[typeof(TEntity2)].Meta;
+            NavigationMeta destNavigation;
+            {
+                var exp = (MemberExpression)destNavigationExpression.Body;
+                var member = exp.Member;
+                var type = exp.Type;
+                var name = member.Name;
+
+                destNavigation = new NavigationMeta(destMeta, type, name, foreignKey, NavigationType.Multi);
+                destMeta.Navigations.Add(destNavigation);
+            }
+            foreignKey.Init(destMeta, navigation, destNavigation);
+            navigation.Init(destNavigation);
+            destNavigation.Init(navigation);
         }
-        var destMeta = Parent.EntityTypeBuilders[typeof(TEntity2)].Meta;
-        NavigationMeta destNavigation;
-        {
-            var exp = (MemberExpression)destNavigationExpression.Body;
-            var member = exp.Member;
-            var type = exp.Type;
-            var name = member.Name;
-
-            destNavigation = new NavigationMeta(destMeta, type, name, foreignKey, NavigationType.Multi);
-            destMeta.Navigations.Add(destNavigation);
-        }
-
-        foreignKey.Init(destMeta, navigation, destNavigation);
-        navigation.Init(destNavigation);
-        destNavigation.Init(navigation);
+        _initActions.Add(action);
     }
 
     public void Finish()
