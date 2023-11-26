@@ -1,32 +1,26 @@
 ﻿using LtQuery.Elements;
 using LtQuery.Elements.Values;
-using LtQuery.Metadata;
+using Microsoft.Extensions.DependencyInjection;
 using System.Data;
 using System.Data.Common;
-using System.Runtime.CompilerServices;
 
 namespace LtQuery.Relational;
 
 class LtConnection : ILtConnection
 {
-    readonly EntityMetaService _metaService;
-    readonly ISqlBuilder _sqlBuilder;
-    public DbConnection Connection { get; }
-    public LtConnection(EntityMetaService metaService, ISqlBuilder sqlBuilder, DbConnection connection)
+    readonly LtConnectionPool _pool;
+    readonly IServiceProvider _provider;
+    public ConnectionAndCommandCache ConnectionAndCommandCache { get; }
+    DbConnection Connection => ConnectionAndCommandCache.Connection;
+    public LtConnection(LtConnectionPool pool, IServiceProvider provider, ConnectionAndCommandCache connectionAndCommandCache)
     {
-        _metaService = metaService;
-        _sqlBuilder = sqlBuilder;
-        Connection = connection;
-        if (connection.State == ConnectionState.Closed)
-            Connection.Open();
+        _pool = pool;
+        _provider = provider;
+        ConnectionAndCommandCache = connectionAndCommandCache;
     }
     public void Dispose()
     {
-        foreach (var commandCaches in _commandCaches)
-        {
-            commandCaches.Value.Dispose();
-        }
-        Connection.Dispose();
+        _pool.Release(this);
     }
 
     static class RepositoryCache<TEntity> where TEntity : class
@@ -38,28 +32,11 @@ class LtConnection : ILtConnection
         var repository = RepositoryCache<TEntity>.Repository;
         if (repository == null)
         {
-            repository = createRepository<TEntity>();
+            repository = _provider.GetRequiredService<IRepository<TEntity>>();
             RepositoryCache<TEntity>.Repository = repository;
         }
         return repository;
     }
-    IRepository<TEntity> createRepository<TEntity>() where TEntity : class
-    {
-        return new Repository<TEntity>(_metaService);
-    }
-
-
-    readonly ConditionalWeakTable<object, CommandCache> _commandCaches = new();
-    internal CommandCache GetCommandCache<TEntity>(Query<TEntity> query) where TEntity : class
-    {
-        if (!_commandCaches.TryGetValue(query, out var cache))
-        {
-            cache = new();
-            _commandCaches.Add(query, cache);
-        }
-        return cache;
-    }
-
 
     public IReadOnlyList<TEntity> Select<TEntity>(Query<TEntity> query) where TEntity : class => getRepository<TEntity>().Select(this, query);
 
@@ -79,64 +56,64 @@ class LtConnection : ILtConnection
 
 
 
-    public DbCommand GetSelectCommand<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetSelectCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
     {
-        var commandCache = GetCommandCache(query);
-        var command = commandCache.SelectCommand;
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Select;
         if (command == null)
         {
             var parameters = createParameters(query);
-            command = createCommand(Connection, query, parameters);
-            commandCache.SelectCommand = command;
+            command = createCommand<TEntity>(sql, parameters);
+            commandCache.Select = command;
         }
         return command;
     }
 
-    public DbCommand GetSingleCommand<TEntity>(Query<TEntity> query) where TEntity : class
+    public DbCommand GetSingleCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
     {
-        var commandCache = GetCommandCache(query);
-        var command = commandCache.SelectCommand;
-        if (command == null)
-        {
-            var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var parameters = createParameters(signleQuery);
-            command = createCommand(Connection, signleQuery, parameters);
-            commandCache.SelectCommand = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetFirstCommand<TEntity>(Query<TEntity> query) where TEntity : class
-    {
-        var commandCache = GetCommandCache(query);
-        var command = commandCache.FirstCommand;
-        if (command == null)
-        {
-            var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var parameters = createParameters(firstQuery);
-            command = createCommand(Connection, firstQuery, parameters);
-            commandCache.FirstCommand = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetCountCommand<TEntity>(Query<TEntity> query) where TEntity : class
-    {
-        var commandCache = GetCommandCache(query);
-        var command = commandCache.CountCommand;
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Select;
         if (command == null)
         {
             var parameters = createParameters(query);
-            command = createCommand(Connection, query, parameters);
-            commandCache.CountCommand = command;
+            command = createCommand<TEntity>(sql, parameters);
+            commandCache.Select = command;
         }
         return command;
     }
 
-    DbCommand createCommand<TEntity>(DbConnection connection, Query<TEntity> query, IReadOnlyList<ParameterValue> parameters) where TEntity : class
+    public DbCommand GetFirstCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
     {
-        var sql = _sqlBuilder.CreateSelectSql(query);
-        var command = connection.CreateCommand();
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.First;
+        if (command == null)
+        {
+            var parameters = createParameters(query);
+            command = createCommand<TEntity>(sql, parameters);
+            commandCache.First = command;
+        }
+        return command;
+    }
+
+    public DbCommand GetCountCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
+    {
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Count;
+        if (command == null)
+        {
+            var parameters = createParameters(query);
+            command = createCommand<TEntity>(sql, parameters);
+            commandCache.Count = command;
+        }
+        return command;
+    }
+
+    DbCommand createCommand<TEntity>(string sql, IReadOnlyList<ParameterValue> parameters) where TEntity : class
+    {
+        if (Connection.State == ConnectionState.Closed)
+            Connection.Open();
+
+        var command = Connection.CreateCommand();
         command.CommandText = sql;
         if (parameters != null)
         {
@@ -186,7 +163,6 @@ class LtConnection : ILtConnection
         else
             throw new NotSupportedException();
     }
-
 
     static void buildParameterValues(List<ParameterValue> list, IValue src)
     {

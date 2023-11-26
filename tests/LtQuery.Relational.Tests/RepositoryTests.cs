@@ -1,5 +1,4 @@
-﻿using LtQuery.Metadata;
-using LtQuery.TestData;
+﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LtQuery.Relational.Tests;
@@ -7,13 +6,9 @@ namespace LtQuery.Relational.Tests;
 public class RepositoryTests
 {
     readonly IServiceProvider _provider;
-    readonly EntityMetaService _metaService;
     public RepositoryTests()
     {
         _provider = new ServiceProviderFactory().Create();
-        var modelConfiguration = _provider.GetRequiredService<IModelConfiguration>();
-
-        _metaService = new EntityMetaService(modelConfiguration);
     }
 
     [Fact]
@@ -25,8 +20,7 @@ public class RepositoryTests
         {
             var provider = scope.ServiceProvider;
 
-            var sqlBuilder = _provider.GetRequiredService<ISqlBuilder>();
-            var repository = new Repository<Blog>(_metaService);
+            var repository = _provider.GetRequiredService<IRepository<Blog>>();
 
             var connection = _provider.GetRequiredService<ILtConnection>();
             var array = repository.Select((LtConnection)connection, query);

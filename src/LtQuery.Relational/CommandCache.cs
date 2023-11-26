@@ -4,16 +4,16 @@ namespace LtQuery.Relational;
 
 class CommandCache : IDisposable
 {
-    public DbCommand? SelectCommand { get; set; }
-    public DbCommand? SignleCommand { get; set; }
-    public DbCommand? FirstCommand { get; set; }
-    public DbCommand? CountCommand { get; set; }
+    public DbCommand? Select { get; set; }
+    public DbCommand? Signle { get; set; }
+    public DbCommand? First { get; set; }
+    public DbCommand? Count { get; set; }
 
     public void Dispose()
     {
-        SelectCommand?.Dispose();
-        SignleCommand?.Dispose();
-        FirstCommand?.Dispose();
-        CountCommand?.Dispose();
+        Select?.Dispose();
+        Signle?.Dispose();
+        First?.Dispose();
+        Count?.Dispose();
     }
 }
