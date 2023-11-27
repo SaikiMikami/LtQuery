@@ -1,13 +1,11 @@
 ﻿using LtQuery.Metadata;
 using LtQuery.Relational.Nodes;
 using System.Data;
-using System.Data.Common;
-using System.Reflection;
 using System.Reflection.Emit;
 
 namespace LtQuery.Relational.Generators;
 
-class TableGenerator
+class TableGenerator : AbstractGenerator
 {
     public QueryGenerator QueryGenerator { get; }
     public TableNode2 Table { get; }
@@ -107,7 +105,7 @@ class TableGenerator
     }
 
     // readerからデータを取得しentityを生成する
-    public void EmitCreate(ILGenerator il, ref int index)
+    public void EmitCreate(ILGenerator il, LocalBuilder reader, ref int index)
     {
         // 重複が混ざっているSELECT
         if (Navigation != null && Navigation.NavigationType == NavigationType.Multi)
@@ -125,12 +123,12 @@ class TableGenerator
             var ifEnd = il.DefineLabel();
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
-            il.EmitCall(_IsDBNull);
+            il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brtrue_S, ifEnd);
             {
                 // 重複カット
                 // id = dic[(int)reader[0]];
-                emitReadColumn(il, Meta.Key, index);
+                emitReadColumn(il, reader, Meta.Key, index);
                 il.EmitStloc(Id);
 
                 // if(preId != id)
@@ -154,7 +152,7 @@ class TableGenerator
                         {
                             // push (?)reader[i]
                             var property = properties[i];
-                            emitReadColumn(il, property, index + i);
+                            emitReadColumn(il, reader, property, index + i);
                         }
 
                         // push new TEntity()
@@ -188,11 +186,11 @@ class TableGenerator
             var ifEnd = il.DefineLabel();
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
-            il.EmitCall(_IsDBNull);
+            il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brtrue_S, ifEnd);
             {
                 // entity = new Entity()
-                emitCreate(il, index);
+                emitCreate(il, reader, index);
                 if (Dictionary != null)
                 {
                     if (Id == null)
@@ -231,7 +229,7 @@ class TableGenerator
                     throw new InvalidProgramException("PreParentId == null");
 
                 // parentId = dic[(int)reader[0]];
-                emitReadColumn(il, Parent.Meta.Key, index + 0);
+                emitReadColumn(il, reader, Parent.Meta.Key, index + 0);
                 il.EmitStloc(Parent.Id);
 
                 // if(preParentId != parentId)
@@ -256,7 +254,7 @@ class TableGenerator
             var hasEntities = IsRootTable && QueryGenerator.Parent == null;
 
             // entity = new Entity()
-            emitCreate(il, index);
+            emitCreate(il, reader, index);
             if (hasEntities)
             {
                 if (Entity == null)
@@ -292,14 +290,14 @@ class TableGenerator
         foreach (var child in Children)
         {
             if ((child.Table.TableType & TableType.Select) != 0)
-                child.EmitCreate(il, ref index);
+                child.EmitCreate(il, reader, ref index);
         }
     }
 
-    void emitCreate(ILGenerator il, int index)
+    void emitCreate(ILGenerator il, LocalBuilder reader, int index)
     {
         // push (?)reader[0]
-        emitReadColumn(il, Meta.Key, index + 0);
+        emitReadColumn(il, reader, Meta.Key, index + 0);
         if (Id != null)
         {
             il.EmitStloc(Id);
@@ -311,7 +309,7 @@ class TableGenerator
         {
             // push (?)reader[i]
             var property = properties[i];
-            emitReadColumn(il, property, index + i);
+            emitReadColumn(il, reader, property, index + i);
         }
 
         // push new TEntity()
@@ -322,17 +320,7 @@ class TableGenerator
         il.EmitStloc(Entity);
     }
 
-    static readonly MethodInfo _IsDBNull = typeof(DbDataReader).GetMethod(nameof(DbDataReader.IsDBNull))!;
-    static readonly MethodInfo _GetInt32 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt32))!;
-    static readonly MethodInfo _GetInt64 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt64))!;
-    static readonly MethodInfo _GetInt16 = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetInt16))!;
-    static readonly MethodInfo _GetDecimal = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetDecimal))!;
-    static readonly MethodInfo _GetByte = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetByte))!;
-    static readonly MethodInfo _GetBoolean = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetBoolean))!;
-    static readonly MethodInfo _GetGuid = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetGuid))!;
-    static readonly MethodInfo _GetDateTime = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetDateTime))!;
-    static readonly MethodInfo _GetString = typeof(DbDataReader).GetMethod(nameof(DbDataReader.GetString))!;
-    void emitReadColumn(ILGenerator il, PropertyMeta property, int index)
+    static void emitReadColumn(ILGenerator il, LocalBuilder reader, PropertyMeta property, int index)
     {
         if (property.Type.IsNullable())
         {
@@ -345,7 +333,7 @@ class TableGenerator
             // if(reader.IsDBNull(index))
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
-            il.EmitCall(_IsDBNull);
+            il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
             {
                 il.Emit(OpCodes.Ldloca_S, nullable);
@@ -360,21 +348,21 @@ class TableGenerator
                 il.EmitLdc_I4(index);
 
                 if (type2 == typeof(int))
-                    il.EmitCall(_GetInt32);
+                    il.EmitCall(DbDataReader_GetInt32);
                 else if (type2 == typeof(long))
-                    il.EmitCall(_GetInt64);
+                    il.EmitCall(DbDataReader_GetInt64);
                 else if (type2 == typeof(short))
-                    il.EmitCall(_GetInt16);
+                    il.EmitCall(DbDataReader_GetInt16);
                 else if (type2 == typeof(decimal))
-                    il.EmitCall(_GetDecimal);
+                    il.EmitCall(DbDataReader_GetDecimal);
                 else if (type2 == typeof(byte))
-                    il.EmitCall(_GetByte);
+                    il.EmitCall(DbDataReader_GetByte);
                 else if (type2 == typeof(bool))
-                    il.EmitCall(_GetBoolean);
+                    il.EmitCall(DbDataReader_GetBoolean);
                 else if (type2 == typeof(Guid))
-                    il.EmitCall(_GetGuid);
+                    il.EmitCall(DbDataReader_GetGuid);
                 else if (type2 == typeof(DateTime))
-                    il.EmitCall(_GetDateTime);
+                    il.EmitCall(DbDataReader_GetDateTime);
                 else
                     throw new NotSupportedException();
                 il.Emit(OpCodes.Newobj, type.GetConstructor(new[] { type2 })!);
@@ -390,7 +378,7 @@ class TableGenerator
             // if(reader.IsDBNull(index))
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
-            il.EmitCall(_IsDBNull);
+            il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
             {
                 il.Emit(OpCodes.Ldnull);
@@ -403,7 +391,7 @@ class TableGenerator
                 il.EmitLdc_I4(index);
 
                 if (type == typeof(string))
-                    il.EmitCall(_GetString);
+                    il.EmitCall(DbDataReader_GetString);
                 else
                     throw new NotSupportedException();
             }
@@ -415,23 +403,23 @@ class TableGenerator
             il.EmitLdloc(1);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
-                il.EmitCall(_GetInt32);
+                il.EmitCall(DbDataReader_GetInt32);
             else if (type == typeof(long))
-                il.EmitCall(_GetInt64);
+                il.EmitCall(DbDataReader_GetInt64);
             else if (type == typeof(short))
-                il.EmitCall(_GetInt16);
+                il.EmitCall(DbDataReader_GetInt16);
             else if (type == typeof(decimal))
-                il.EmitCall(_GetDecimal);
+                il.EmitCall(DbDataReader_GetDecimal);
             else if (type == typeof(byte))
-                il.EmitCall(_GetByte);
+                il.EmitCall(DbDataReader_GetByte);
             else if (type == typeof(bool))
-                il.EmitCall(_GetBoolean);
+                il.EmitCall(DbDataReader_GetBoolean);
             else if (type == typeof(Guid))
-                il.EmitCall(_GetGuid);
+                il.EmitCall(DbDataReader_GetGuid);
             else if (type == typeof(DateTime))
-                il.EmitCall(_GetDateTime);
+                il.EmitCall(DbDataReader_GetDateTime);
             else if (type == typeof(string))
-                il.EmitCall(_GetString);
+                il.EmitCall(DbDataReader_GetString);
             else
                 throw new NotSupportedException();
         }

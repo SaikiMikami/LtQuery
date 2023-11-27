@@ -27,6 +27,13 @@ static class ILGeneratorExtensions
                 break;
         }
     }
+
+    public static void EmitLdloca_S(this ILGenerator _this, LocalBuilder local) => _this.EmitLdloca_S(local.LocalIndex);
+    public static void EmitLdloca_S(this ILGenerator _this, int num)
+    {
+        _this.Emit(OpCodes.Ldloca_S, (sbyte)num);
+    }
+
     public static void EmitStloc(this ILGenerator _this, LocalBuilder local) => _this.EmitStloc(local.LocalIndex);
     public static void EmitStloc(this ILGenerator _this, int num)
     {
@@ -49,6 +56,7 @@ static class ILGeneratorExtensions
                 break;
         }
     }
+
     public static void EmitLdc_I4(this ILGenerator _this, int num)
     {
         switch (num)

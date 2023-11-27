@@ -11,6 +11,13 @@ public class Post
     public Blog Blog { get; set; } = default!;
     public User? User { get; set; }
 
+    public Post(int blogId, int? userId, DateTime dateTime, string content)
+    {
+        BlogId = blogId;
+        UserId = userId;
+        DateTime = dateTime;
+        Content = content;
+    }
     public Post(int id, int blogId, int? userId, DateTime dateTime, string content)
     {
         Id = id;

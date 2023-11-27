@@ -4,11 +4,13 @@ namespace LtQuery.Metadata;
 
 public class EntityMetaService
 {
+    public IReadOnlyList<EntityMeta> AllEntityMetas { get; }
     public EntityMetaService(IModelConfiguration modelConfiguration)
     {
         var modelBuilder = new ModelBuilder();
         modelConfiguration.Configure(modelBuilder);
         var metas = modelBuilder.Build();
+        AllEntityMetas = metas;
         foreach (var meta in metas)
             addCache(meta);
     }
@@ -27,7 +29,7 @@ public class EntityMetaService
         public static void SetCache(EntityMeta meta) => EntityMeta = meta;
     }
 
-    public EntityMeta GetEntityMeta<TEntity>() where TEntity : class => Cache<TEntity>.EntityMeta ?? throw new InvalidProgramException();
+    public EntityMeta GetEntityMeta<TEntity>() where TEntity : class => Cache<TEntity>.EntityMeta ?? throw new InvalidOperationException($"type[{typeof(TEntity)}] not registered in IModelConfiguration");
 
     public static EntityMeta GetEntityMeta(Type type)
     {

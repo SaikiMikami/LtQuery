@@ -12,9 +12,7 @@ Instead, call giving a diverty, tiny query object.
 ```csharp
 // setup DI Container
 var collection = new ServiceCollection();
-collection.AddLtQuerySqlServer();
-collection.AddSingleton<IModelConfiguration, ModelConfiguration>();	// User-defined ModelConfiguration
-collection.AddScoped<DbConnection>(_ => new SqlConnection(/*ConnectionString*/));
+collection.AddLtQuerySqlServer(new ModelConfiguration(), _ => new SqlConnection(/*ConnectionString*/));
 var provider = collection.BuildServiceProvider();
 
 using(var scope = provider.CreateScope())
@@ -27,6 +25,17 @@ using(var scope = provider.CreateScope())
 
 	// execute query
 	var blogs = connection.Select(query, new { UserId = 5 });
+
+	// Write using Unit of Work
+	using(var unitOfWork = connection.CreateUnitOfWork())
+	{
+		var blog = blogs[0];
+		blog.Title = "NewTitle";
+		unitOfWork.Update(blog);
+
+		// Write
+		unitOfWork.Commit();
+	}
 }
 ```
 

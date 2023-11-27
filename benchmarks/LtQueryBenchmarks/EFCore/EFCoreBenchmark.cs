@@ -5,14 +5,19 @@ namespace LtQueryBenchmarks.EFCore;
 
 class EFCoreBenchmark : AbstractBenchmark
 {
+    RandomEx _random = default!;
     public void Setup()
     {
+        _random = new(0);
+
         using (var context = new TestContext())
         {
             _selectSingle(context);
             _selectSimple(context).ToArray();
             _selectIncludeChilren(context, 20).ToArray();
             _selectComplex(context, "PLCJKJKRUK", 10, 20).ToArray();
+            context.Add(new Tag("a"));
+            context.SaveChanges();
         }
     }
     static readonly Func<TestContext, Blog> _selectSingle
@@ -92,5 +97,20 @@ class EFCoreBenchmark : AbstractBenchmark
                 AddHashCode(ref accum, post.Id);
         }
         return accum;
+    }
+
+    public int AddRange()
+    {
+        using (var context = new TestContext())
+        {
+            var tags = new List<Tag>();
+            for (var i = 0; i < 10; i++)
+            {
+                tags.Add(new(_random.NextString()));
+            }
+            context.AddRange(tags);
+            context.SaveChanges();
+        }
+        return 0;
     }
 }

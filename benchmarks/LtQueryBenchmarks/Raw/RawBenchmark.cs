@@ -7,9 +7,12 @@ namespace LtQueryBenchmarks.Raw;
 class RawBenchmark : AbstractBenchmark
 {
     SqlConnection _connection = default!;
+    RandomEx _random = default!;
     public void Setup()
     {
         _connection = new SqlConnection(Constants.ConnectionString);
+        _random = new(0);
+
         _connection.Open();
 
         _singleCommand = new SqlCommand(_singleSql, _connection);
@@ -238,5 +241,38 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
                 AddHashCode(ref accum, post.Id);
         }
         return accum;
+    }
+
+
+    const string addSql = @"
+INSERT INTO [Tag] ([Name]) VALUES(@Name);
+SELECT CONVERT(INT, SCOPE_IDENTITY())
+";
+    public int AddRange()
+    {
+        using (var tran = _connection.BeginTransaction())
+        {
+            var command = _connection.CreateCommand();
+            command.CommandText = addSql;
+            command.Transaction = tran;
+            var p = command.CreateParameter();
+            p.ParameterName = "@Name";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+
+            for (var i = 0; i < 10; i++)
+            {
+                command.Parameters[0].Value = _random.NextString();
+                using (var reader = command.ExecuteReader())
+                {
+                    reader.Read();
+
+                    var id = reader.GetInt32(0);
+                }
+            }
+
+            tran.Commit();
+        }
+        return 0;
     }
 }

@@ -7,6 +7,11 @@ public class Tag
 
     public List<BlogTag> BlogTags { get; set; } = new();
 
+    public Tag(string name)
+    {
+        Name = name;
+    }
+
     public Tag(int id, string name)
     {
         Id = id;

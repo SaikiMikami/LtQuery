@@ -1,10 +1,11 @@
 ﻿using LtQuery.Metadata;
+using LtQuery.Relational;
 using LtQuery.Relational.Nodes;
 using System.Text;
 
 namespace LtQuery.SqlServer;
 
-class SqlBuilder : Relational.ISqlBuilder
+class SqlBuilder : ISqlBuilder
 {
     readonly EntityMetaService _metaService;
     public SqlBuilder(EntityMetaService metaService)
@@ -34,6 +35,96 @@ class SqlBuilder : Relational.ISqlBuilder
             strb.Append("; ");
             appendSelectSqls(strb, child);
         }
+    }
+
+    public string CreateAddSql<TEntity>() where TEntity : class
+    {
+        var meta = _metaService.GetEntityMeta<TEntity>();
+
+        var sqlb = new StringBuilder();
+        sqlb.Append("INSERT INTO [").Append(meta.Type.Name).Append("] (");
+        var isFirst = true;
+        foreach (var property in meta.Properties)
+        {
+            if (property.IsKey)
+                continue;
+            if (!isFirst)
+                sqlb.Append(", ");
+            else
+                isFirst = false;
+            sqlb.Append('[').Append(property.Name).Append(']');
+        }
+        sqlb.Append(") VALUES (");
+        isFirst = true;
+        foreach (var property in meta.Properties)
+        {
+            if (property.IsKey)
+                continue;
+            if (!isFirst)
+                sqlb.Append(", ");
+            else
+                isFirst = false;
+            sqlb.Append('@').Append(property.Name);
+        }
+        sqlb.Append("); ");
+
+        sqlb.Append("SELECT CONVERT(INT, SCOPE_IDENTITY())");
+
+        return sqlb.ToString();
+    }
+
+    public string CreateUpdatedSql<TEntity>() where TEntity : class
+    {
+        var meta = _metaService.GetEntityMeta<TEntity>();
+
+        var sqlb = new StringBuilder();
+        sqlb.Append("UPDATE [").Append(meta.Name).Append("] SET ");
+        var isFirst = true;
+        foreach (var property in meta.Properties)
+        {
+            if (property.IsKey)
+                continue;
+            if (!isFirst)
+                sqlb.Append(", ");
+            else
+                isFirst = false;
+            sqlb.Append(property.Name).Append(" = @").Append(property.Name);
+        }
+        sqlb.Append(" WHERE ");
+
+        isFirst = true;
+        foreach (var property in meta.Properties)
+        {
+            if (!property.IsKey)
+                continue;
+            if (!isFirst)
+                sqlb.Append(" AND ");
+            else
+                isFirst = false;
+            sqlb.Append(property.Name).Append(" = @").Append(property.Name);
+        }
+        return sqlb.ToString();
+    }
+
+    public string CreateRemoveSql<TEntity>() where TEntity : class
+    {
+        var meta = _metaService.GetEntityMeta<TEntity>();
+
+        var sqlb = new StringBuilder();
+        sqlb.Append("DELETE FROM [").Append(meta.Name).Append("] WHERE ");
+
+        var isFirst = true;
+        foreach (var property in meta.Properties)
+        {
+            if (!property.IsKey)
+                continue;
+            if (!isFirst)
+                sqlb.Append(" AND ");
+            else
+                isFirst = false;
+            sqlb.Append(property.Name).Append(" = @").Append(property.Name);
+        }
+        return sqlb.ToString();
     }
 }
 
@@ -245,7 +336,7 @@ static class StringBuilderExtensions
 
     static StringBuilder appendProperty(this StringBuilder _this, TableNode table, PropertyMeta property)
     {
-        _this.Append("t").Append(table.Index).Append(".[").Append(property.Name).Append(']');
+        _this.Append('t').Append(table.Index).Append(".[").Append(property.Name).Append(']');
         return _this;
     }
 }

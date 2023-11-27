@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using LtQuery.Metadata;
+using Microsoft.Extensions.DependencyInjection;
 using System.Data.Common;
 
 namespace LtQuery.Relational;
@@ -6,10 +7,14 @@ namespace LtQuery.Relational;
 class LtConnectionPool : IDisposable
 {
     readonly IServiceProvider _provider;
+    readonly EntityMetaService _metaService;
+    readonly ISqlBuilder _sqlBuilder;
     public int MaxPoolSize { get; }
-    public LtConnectionPool(IServiceProvider provider, LtSettings? settings)
+    public LtConnectionPool(IServiceProvider provider, EntityMetaService metaService, ISqlBuilder sqlBuilder, LtSettings? settings)
     {
         _provider = provider;
+        _metaService = metaService;
+        _sqlBuilder = sqlBuilder;
         MaxPoolSize = settings?.MaxConnectionPoolSize ?? 100;
     }
 
@@ -50,7 +55,7 @@ class LtConnectionPool : IDisposable
         {
             _locker.ExitUpgradeableReadLock();
         }
-        return new(this, _provider, connectionAndCommandCache);
+        return new(this, _metaService, _sqlBuilder, connectionAndCommandCache);
     }
 
     public void Release(LtConnection connection)

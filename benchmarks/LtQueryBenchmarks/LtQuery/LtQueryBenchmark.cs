@@ -8,19 +8,13 @@ namespace LtQueryBenchmarks.LtQuery;
 
 class LtQueryBenchmark : AbstractBenchmark
 {
-    public IServiceProvider Create()
-    {
-        var collection = new ServiceCollection();
-        collection.AddLtQuerySqlServer(new ModelConfiguration(), _ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
-
-        return collection.BuildServiceProvider();
-    }
-
+    RandomEx _random = default!;
     IServiceScope _scope = default!;
     ILtConnection _connection = default!;
     public void Setup()
     {
-        var provider = Create();
+        _random = new(0);
+        var provider = CreateProvider();
         _scope = provider.CreateScope();
         provider = _scope.ServiceProvider;
 
@@ -28,10 +22,19 @@ class LtQueryBenchmark : AbstractBenchmark
         _connection.Select(_singleQuery);
         _connection.Select(_selectSimpleQuery);
         _connection.Select(_includeChilrenQuery, new { Id = 20 });
+        _connection.Add(new Tag("a"));
     }
     public void Cleanup()
     {
         _scope.Dispose();
+    }
+
+    public IServiceProvider CreateProvider()
+    {
+        var collection = new ServiceCollection();
+        collection.AddLtQuerySqlServer(new ModelConfiguration(), _ => new SqlConnection(@"Server=(localdb)\MSSQLLocalDB;Database=LtQueryTest"));
+
+        return collection.BuildServiceProvider();
     }
 
 
@@ -94,5 +97,20 @@ class LtQueryBenchmark : AbstractBenchmark
                 AddHashCode(ref accum, post.Id);
         }
         return accum;
+    }
+
+    public int AddRange()
+    {
+        using (var unitOfWork = _connection.CreateUnitOfWork())
+        {
+            var tags = new List<Tag>();
+            for (var i = 0; i < 10; i++)
+            {
+                tags.Add(new(_random.NextString()));
+            }
+            unitOfWork.AddRange(tags);
+            unitOfWork.Commit();
+        }
+        return 0;
     }
 }
