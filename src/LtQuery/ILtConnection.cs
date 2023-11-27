@@ -1,58 +1,22 @@
-﻿namespace LtQuery;
+﻿using System.Data;
+
+namespace LtQuery;
 
 /// <summary>
 /// LtQuery Connection
 /// </summary>
-public interface ILtConnection : IDisposable
+public interface ILtConnection : IDbSelector, IDbUpdater, IDisposable
 {
     /// <summary>
-    /// Executes a query, returning the data typed as <typeparamref name="TEntity"/>.
+    /// Create UnitOfWork
     /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
     /// <returns></returns>
-    IReadOnlyList<TEntity> Select<TEntity>(Query<TEntity> query) where TEntity : class;
+    ILtUnitOfWork CreateUnitOfWork();
 
     /// <summary>
-    /// Executes a query, returning the data typed as <typeparamref name="TEntity"/>.
+    /// Begin Transaction
     /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
+    /// <param name="isolationLevel"></param>
     /// <returns></returns>
-    IReadOnlyList<TEntity> Select<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
-
-    /// <summary>
-    /// Executes a single-row query, returning the data typed as <typeparamref name="TEntity"/>.
-    /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    TEntity Single<TEntity>(Query<TEntity> query) where TEntity : class;
-
-    /// <summary>
-    /// Executes a single-row query, returning the data typed as <typeparamref name="TEntity"/>.
-    /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    TEntity Single<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
-
-    /// <summary>
-    /// Executes a single-row query, returning the data typed as <typeparamref name="TEntity"/>.
-    /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    TEntity First<TEntity>(Query<TEntity> query) where TEntity : class;
-
-    /// <summary>
-    /// Executes a single-row query, returning the data typed as <typeparamref name="TEntity"/>.
-    /// </summary>
-    /// <typeparam name="TEntity"></typeparam>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    TEntity First<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
-
-    int Count<TEntity>(Query<TEntity> query) where TEntity : class;
-    int Count<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
+    IDbTransaction BeginTransaction(IsolationLevel? isolationLevel = default);
 }

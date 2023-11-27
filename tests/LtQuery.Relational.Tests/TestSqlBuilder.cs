@@ -2,7 +2,6 @@
 
 class TestSqlBuilder : ISqlBuilder
 {
-
     public string CreateCountSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
         throw new NotImplementedException();
@@ -10,7 +9,7 @@ class TestSqlBuilder : ISqlBuilder
 
     public string CreateSelectSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
-        if (query.Includes.Count() > 0)
+        if (query.Includes.Count > 0)
             return $@"
 SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog];
 SELECT t1.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] FROM [Post] AS t1 INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[BlogId]";
@@ -18,11 +17,17 @@ SELECT t1.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] F
             return $"SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog]";
     }
 
-    public string CreateFirstSql<TEntity>(Query<TEntity> query) where TEntity : class
+    public string CreateAddSql<TEntity>() where TEntity : class
     {
         throw new NotImplementedException();
     }
-    public string CreateSingleSql<TEntity>(Query<TEntity> query) where TEntity : class
+
+    public string CreateUpdatedSql<TEntity>() where TEntity : class
+    {
+        throw new NotImplementedException();
+    }
+
+    public string CreateRemoveSql<TEntity>() where TEntity : class
     {
         throw new NotImplementedException();
     }

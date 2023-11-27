@@ -25,7 +25,7 @@ class QueryGenerator
         Children = list;
     }
 
-    public void EmitSelect(ILGenerator il)
+    public void EmitSelect(ILGenerator il, LocalBuilder reader)
     {
         var topTable = RootTable;
         topTable.CreateLocalAndLabel(il);
@@ -40,7 +40,7 @@ class QueryGenerator
             il.MarkLabel(whileStartLabel);
 
             var index = 0;
-            topTable.EmitCreate(il, ref index);
+            topTable.EmitCreate(il, reader, ref index);
 
             // while (reader.Read()) End
             il.MarkLabel(whileEndLabel);
@@ -55,7 +55,7 @@ class QueryGenerator
             il.EmitCall(typeof(DbDataReader).GetMethod("NextResult")!);
             il.Emit(OpCodes.Pop);
 
-            child.EmitSelect(il);
+            child.EmitSelect(il, reader);
         }
     }
 

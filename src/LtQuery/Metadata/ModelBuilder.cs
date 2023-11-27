@@ -20,6 +20,7 @@ class ModelBuilder : IModelBuilder
                 entityTypeBuilder.Finish();
             _isBuilded = true;
         }
-        return EntityTypeBuilders.Values.Select(_ => _.Meta).ToArray();
+        var list = EntityTypeBuilders.Values.Select(_ => _.Meta).ToArray();
+        return new EntityMetaSorter().Sort(list);
     }
 }

@@ -11,26 +11,10 @@ public class ModelConfiguration : IModelConfiguration
             b.HasProperty(_ => _.Id, true);
             b.HasProperty(_ => _.Password);
         });
-        modelBuilder.Entity<User>(b =>
-        {
-            b.HasProperty(_ => _.Id, true);
-            b.HasProperty(_ => _.Name);
-            b.HasProperty(_ => _.Email);
-            b.HasReference(_ => _.AccountId, _ => _.Account, _ => _.User);
-        });
         modelBuilder.Entity<Category>(b =>
         {
             b.HasProperty(_ => _.Id, true);
             b.HasProperty(_ => _.Name);
-        });
-        modelBuilder.Entity<Blog>(b =>
-        {
-            b.HasProperty(_ => _.Id, true);
-            b.HasProperty(_ => _.Title);
-            b.HasReference(_ => _.CategoryId, _ => _.Category, _ => _.Blogs);
-            b.HasReference(_ => _.UserId, _ => _.User, _ => _.Blogs);
-            b.HasProperty(_ => _.DateTime);
-            b.HasProperty(_ => _.Content);
         });
         modelBuilder.Entity<Post>(b =>
         {
@@ -45,10 +29,26 @@ public class ModelConfiguration : IModelConfiguration
             b.HasProperty(_ => _.Id, true);
             b.HasProperty(_ => _.Name);
         });
+        modelBuilder.Entity<Blog>(b =>
+        {
+            b.HasProperty(_ => _.Id, true);
+            b.HasProperty(_ => _.Title);
+            b.HasReference(_ => _.CategoryId, _ => _.Category, _ => _.Blogs);
+            b.HasReference(_ => _.UserId, _ => _.User, _ => _.Blogs);
+            b.HasProperty(_ => _.DateTime);
+            b.HasProperty(_ => _.Content);
+        });
         modelBuilder.Entity<BlogTag>(b =>
         {
             b.HasReference(_ => _.BlogId, _ => _.Blog, _ => _.BlogTags);
             b.HasReference(_ => _.TagId, _ => _.Tag, _ => _.BlogTags);
+        });
+        modelBuilder.Entity<User>(b =>
+        {
+            b.HasProperty(_ => _.Id, true);
+            b.HasProperty(_ => _.Name);
+            b.HasProperty(_ => _.Email);
+            b.HasReference(_ => _.AccountId, _ => _.Account, _ => _.User);
         });
     }
 }

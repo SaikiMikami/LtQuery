@@ -138,4 +138,94 @@ public class EndToEndTests
         account = blogs[2].User.Account;
         Assert.Null(account);
     }
+
+    static readonly Query<User> _getUser = Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void Rollback()
+    {
+        int id;
+        User user;
+        using (var transaction = _connection.BeginTransaction())
+        {
+            user = new User("name", "email", null);
+            Assert.Equal(0, user.Id);
+
+            _connection.Add(user);
+
+            id = user.Id;
+            Assert.NotEqual(0, id);
+
+            user = _connection.Single(_getUser, new { Id = id });
+            Assert.NotNull(user);
+            Assert.Equal("name", user.Name);
+            Assert.Equal("email", user.Email);
+            Assert.Null(user.AccountId);
+
+
+            transaction.Rollback();
+        }
+
+        try
+        {
+            user = _connection.Single(_getUser, new { Id = id });
+            Assert.Fail();
+        }
+        catch { }
+    }
+
+    static readonly Query<Tag> _getTag = Lt.Query<Tag>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void AddUpdateRemove_UsingUnitOfWork()
+    {
+        int id;
+        Tag tag;
+        using (var unitOfWork = _connection.CreateUnitOfWork())
+        {
+            tag = new Tag("tag");
+            Assert.Equal(0, tag.Id);
+
+            unitOfWork.Add(tag);
+
+            Assert.Equal(0, tag.Id);
+
+            unitOfWork.Commit();
+
+            id = tag.Id;
+            Assert.NotEqual(0, id);
+        }
+
+        using (var unitOfWork = _connection.CreateUnitOfWork())
+        {
+            tag = unitOfWork.Single(_getTag, new { Id = id });
+            Assert.NotNull(tag);
+            tag.Name = "NewName";
+
+            unitOfWork.Update(tag);
+
+            unitOfWork.Commit();
+        }
+
+        tag = _connection.Single(_getTag, new { Id = id });
+        Assert.NotNull(tag);
+        Assert.Equal("NewName", tag.Name);
+
+        using (var unitOfWork = _connection.CreateUnitOfWork())
+        {
+            tag = unitOfWork.Single(_getTag, new { Id = id });
+            Assert.NotNull(tag);
+
+            unitOfWork.Remove(tag);
+
+            unitOfWork.Commit();
+        }
+
+        try
+        {
+            tag = _connection.Single(_getTag, new { Id = id });
+            Assert.Fail();
+        }
+        catch { }
+    }
 }
