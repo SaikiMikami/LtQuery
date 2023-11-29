@@ -228,4 +228,25 @@ public class EndToEndTests
         }
         catch { }
     }
+
+    [Fact]
+    public void Add_WithChild()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var user = new User(random.NextString(), null, null);
+            _connection.Add(user);
+            var category = new Category(random.NextString());
+            _connection.Add(category);
+            var blog = new Blog(random.NextString(), category, user, random.NextDateTime(), random.NextString());
+            _connection.Add(blog);
+
+            Assert.NotEqual(0, user.Id);
+            Assert.NotEqual(0, category.Id);
+            Assert.NotEqual(0, blog.Id);
+            Assert.Equal(user.Id, blog.UserId);
+            Assert.Equal(category.Id, blog.CategoryId);
+        }
+    }
 }
