@@ -25,36 +25,43 @@ See [wiki](https://github.com/SaikiMikami/LtQuery/wiki) for details.
 
 ## Measurement environment
 - .NET 7.0
-- Windows
+- Windows 11
 - SQL Server 2019 Express on local.
-- LtQuery 0.2.1, Dapper 2.1.15, EFCore 7.0.13
+- LtQuery 1.0.0, Dapper 2.1.24, EFCore 7.0.13
 
 ## SelectOne from Single table
 
-| ORM     | Mean      | Error    | StdDev   | Median    | Gen0    | Allocated |
-|-------- |----------:|---------:|---------:|--------:|----------:|----------:|
-| ADO.NET |  88.61 μs | 1.716 μs | 2.462 μs |  87.10 μs |  2.5635 |    5.3 KB |
-| **LtQuery** |  **89.17 μs** | **1.768 μs** | **1.892 μs** |  **89.54 μs** |  **2.5635** |   **5.38 KB** |
-| Dapper  | 108.11 μs | 0.267 μs | 0.250 μs | 108.03 μs |  2.8076 |   5.97 KB |
-| EFCore  | 246.16 μs | 1.330 μs | 1.244 μs | 246.16 μs | 36.1328 |  74.47 KB |
+Result of `connection.Single(Lt.Query<Blog>().Where(_ => _.Id == 1))`
+
+| ORM  | Mean      | Error    | StdDev   | Gen0    | Allocated |
+|-------- |----------:|---------:|---------:|--------:|----------:|
+| ADO.NET |  87.05 μs | 0.457 μs | 0.405 μs |  87.23 μs |  2.5635 |    5.3 KB |
+| **LtQuery** |  **86.66 μs** | **1.512 μs** | **1.414 μs** |  **86.97 μs** |  **2.5635** |   **5.38 KB** |
+| Dapper  |  90.27 μs | 1.800 μs | 5.193 μs |  87.69 μs |  2.8076 |   5.83 KB |
+| EFCore  | 264.16 μs | 1.883 μs | 1.669 μs | 263.51 μs | 36.1328 |  74.47 KB |
 
 ## SelectMany(20) from Single table
 
-| ORM     | Mean     | Error   | StdDev  | Gen0    | Allocated |
+Result of `connection.Select(Lt.Query<Blog>().Take(20))`
+
+| ORM  | Mean     | Error   | StdDev  | Gen0    | Allocated |
 |-------- |---------:|--------:|--------:|--------:|----------:|
-| ADO.NET | 209.2 μs | 2.53 μs | 2.37 μs | 32.7148 |   67.2 KB |
-| **LtQuery** | **212.9 μs** | **1.66 μs** | **1.29 μs** | **32.7148** |  **67.23 KB** |
-| Dapper  | 233.0 μs | 1.29 μs | 1.08 μs | 34.1797 |  70.02 KB |
-| EFCore  | 381.0 μs | 2.47 μs | 2.06 μs | 69.3359 | 142.51 KB |
+| ADO.NET | 200.5 us | 3.85 us | 4.11 us | 32.7148 |   67.2 KB |
+| **LtQuery** | **201.1 us** | **3.88 us** | **4.16 us** | **32.7148** |  **67.23 KB** |
+| Dapper  | 207.5 us | 2.55 us | 2.38 us | 34.1797 |  69.88 KB |
+| EFCore  | 360.8 us | 2.43 us | 2.27 us | 69.3359 | 142.51 KB |
 
 ## SelectMany(20) from With children
 
+Result of `connection.Select(Lt.Query<Blog>().Include(_ => _.Posts).Take(20))`
+
 | ORM  | Mean     | Error     | StdDev    | Gen0     | Gen1     | Allocated |
 |-------- |---------:|----------:|----------:|---------:|---------:|----------:|
-| ADO.NET | 3.883 ms | 0.0633 ms | 0.0592 ms | 296.8750 | 203.1250 |   1.44 MB |
-| **LtQuery** | **3.906 ms** | **0.0380 ms** | **0.0337 ms** | **296.8750** | **195.3125** |   **1.44 MB** |
-| Dapper  | 4.416 ms | 0.0255 ms | 0.0226 ms | 359.3750 | 187.5000 |   1.62 MB |
-| EFCore  | 6.816 ms | 0.0720 ms | 0.0673 ms | 554.6875 | 367.1875 |    2.6 MB |
+| ADO.NET | 4.594 ms | 0.0793 ms | 0.0742 ms | 289.0625 | 195.3125 |   1.44 MB |
+| **LtQuery** | **4.602 ms** | **0.0839 ms** | **0.0785 ms** | **304.6875** | **179.6875** |   **1.44 MB** |
+| Dapper  | 4.718 ms | 0.0735 ms | 0.0651 ms | 351.5625 | 195.3125 |   1.62 MB |
+| EFCore  | 7.007 ms | 0.0736 ms | 0.0688 ms | 554.6875 | 367.1875 |    2.6 MB |
+
 
 # Performance-aware code
 In LtQuery, when the user holds the query object, 

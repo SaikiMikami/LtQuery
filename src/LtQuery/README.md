@@ -21,13 +21,16 @@ using(var scope = provider.CreateScope())
 	var connection = scope.ServiceProvider.GetRequiredService<ILtConnection>();
 
 	// create query object
-	var query = Lt.Query<Blog>().Include(_ => _.Posts).Where(_ => _.UserId == Lt.Arg<int>("UserId")).OrderBy(_ => _.Date).Take(20);
+	var query = Lt.Query<Blog>()
+		.Include(_ => _.Posts)
+		.Where(_ => _.UserId == Lt.Arg<int>("UserId"))
+		.OrderBy(_ => _.Date).Take(20);
 
 	// execute query
 	var blogs = connection.Select(query, new { UserId = 5 });
 
 	// Write using Unit of Work
-	using(var unitOfWork = connection.CreateUnitOfWork())
+	using (var unitOfWork = connection.CreateUnitOfWork())
 	{
 		var blog = blogs[0];
 		blog.Title = "NewTitle";

@@ -17,5 +17,6 @@ public static class ServiceCollectionExtensions
         _this.AddSingleton(settings ?? new());
 
         _this.AddScoped<ILtConnection>(_ => _.GetRequiredService<LtConnectionPool>().CreateConnection());
+        _this.AddScoped(_ => _.GetRequiredService<ILtConnection>().CreateUnitOfWork());
     }
 }
