@@ -14,6 +14,17 @@ public class Blog
     public List<BlogTag> BlogTags { get; set; } = default!;
     public List<Post> Posts { get; } = new();
 
+    public Blog(string title, Category category, User user, DateTime dateTime, string content)
+    {
+        Title = title;
+        Category = category;
+        User = user;
+        DateTime = dateTime;
+        Content = content;
+
+        CategoryId = category.Id;
+        UserId = user.Id;
+    }
     public Blog(int id, string title, int categoryId, int userId, DateTime dateTime, string content)
     {
         Id = id;

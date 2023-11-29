@@ -7,6 +7,10 @@ public class Category
 
     public List<Blog> Blogs { get; set; } = new();
 
+    public Category(string name)
+    {
+        Name = name;
+    }
     public Category(int id, string name)
     {
         Id = id;
