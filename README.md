@@ -2,13 +2,13 @@
 
 ## Packages
 
-| Package | NuGet Stable |
-| ------- | ------------ |
-| [LtQuery](https://www.nuget.org/packages/LtQuery/) | [![Dapper](https://img.shields.io/nuget/v/LtQuery.svg)](https://www.nuget.org/packages/LtQuery/) |
-| [LtQuery.Relational](https://www.nuget.org/packages/LtQuery.Relational/) | [![Dapper](https://img.shields.io/nuget/v/LtQuery.Relational.svg)](https://www.nuget.org/packages/LtQuery.Relational/) |
-| [LtQuery.SqlServer](https://www.nuget.org/packages/LtQuery.SqlServer/) | [![Dapper](https://img.shields.io/nuget/v/LtQuery.SqlServer.svg)](https://www.nuget.org/packages/LtQuery.SqlServer/) |
-| [LtQuery.MySql](https://www.nuget.org/packages/LtQuery.MySql/) | [![Dapper](https://img.shields.io/nuget/v/LtQuery.MySql.svg)](https://www.nuget.org/packages/LtQuery.MySql/) |
-| [LtQuery.Sqlite](https://www.nuget.org/packages/LtQuery.Sqlite/) | [![Dapper](https://img.shields.io/nuget/v/LtQuery.Sqlite.svg)](https://www.nuget.org/packages/LtQuery.Sqlite/) |
+| Package | NuGet | Downloads |
+| ------- | ----- | --------- |
+| [LtQuery](https://www.nuget.org/packages/LtQuery/) | [![LtQuery](https://img.shields.io/nuget/v/LtQuery.svg)](https://www.nuget.org/packages/LtQuery/) | [![LtQuery](https://img.shields.io/nuget/dt/LtQuery.svg)](https://www.nuget.org/packages/LtQuery/) |
+| [LtQuery.Relational](https://www.nuget.org/packages/LtQuery.Relational/) | [![LtQuery.Relational](https://img.shields.io/nuget/v/LtQuery.Relational.svg)](https://www.nuget.org/packages/LtQuery.Relational/) | [![LtQuery.Relational](https://img.shields.io/nuget/dt/LtQuery.Relational.svg)](https://www.nuget.org/packages/LtQuery.Relational/) |
+| [LtQuery.SqlServer](https://www.nuget.org/packages/LtQuery.SqlServer/) | [![LtQuery.SqlServer](https://img.shields.io/nuget/v/LtQuery.SqlServer.svg)](https://www.nuget.org/packages/LtQuery.SqlServer/) | [![LtQuery.SqlServer](https://img.shields.io/nuget/dt/LtQuery.SqlServer.svg)](https://www.nuget.org/packages/LtQuery.SqlServer/) |
+| [LtQuery.MySql](https://www.nuget.org/packages/LtQuery.MySql/) | [![LtQuery.MySql](https://img.shields.io/nuget/v/LtQuery.MySql.svg)](https://www.nuget.org/packages/LtQuery.MySql/) | [![LtQuery.MySql](https://img.shields.io/nuget/dt/LtQuery.MySql.svg)](https://www.nuget.org/packages/LtQuery.MySql/) |
+| [LtQuery.Sqlite](https://www.nuget.org/packages/LtQuery.Sqlite/) | [![LtQuery.Sqlite](https://img.shields.io/nuget/v/LtQuery.Sqlite.svg)](https://www.nuget.org/packages/LtQuery.Sqlite/) | [![LtQuery.Sqlite](https://img.shields.io/nuget/dt/LtQuery.Sqlite.svg)](https://www.nuget.org/packages/LtQuery.Sqlite/) |
 
 ## Features
 
