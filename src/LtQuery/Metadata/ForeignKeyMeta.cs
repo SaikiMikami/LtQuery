@@ -15,4 +15,6 @@ public class ForeignKeyMeta : PropertyMeta
         Navigation = navigation;
         DestNavigation = destNavigation;
     }
+
+    public override bool IsAutoIncrement => false;
 }

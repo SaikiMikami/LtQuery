@@ -10,10 +10,16 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 {
     readonly EntityMetaService _metaService;
     readonly ISqlBuilder _sqlBuilder;
-    public Repository(EntityMetaService metaService, ISqlBuilder sqlBuilder)
+    readonly IAddGenerator<TEntity> _addGenerator;
+    readonly EntityMeta _meta;
+    readonly ReadGenerator<TEntity> _readGenerator;
+    public Repository(EntityMetaService metaService, ISqlBuilder sqlBuilder, IAddGenerator<TEntity> addGenerator)
     {
         _metaService = metaService;
         _sqlBuilder = sqlBuilder;
+        _addGenerator = addGenerator;
+        _meta = _metaService.GetEntityMeta<TEntity>();
+        _readGenerator = new ReadGenerator<TEntity>(_metaService);
     }
 
     class Cache2
@@ -107,12 +113,10 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
     class UpdateCache2
     {
-        public Action<DbCommand, IEnumerable<TEntity>> Execute { get; set; }
-        public string Sql { get; }
-        public UpdateCache2(Action<DbCommand, IEnumerable<TEntity>> execute, string sql)
+        public ExecuteUpdate<TEntity> Execute { get; set; }
+        public UpdateCache2(ExecuteUpdate<TEntity> execute)
         {
             Execute = execute;
-            Sql = sql;
         }
     }
     static class UpdateCache
@@ -130,7 +134,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc(query);
+            var read = _readGenerator.CreateReadSelectFunc(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
             cache2 = new(read, sql);
             cache.Select = cache2;
@@ -148,7 +152,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc<TParameter>(query);
+            var read = _readGenerator.CreateReadSelectFunc<TParameter>(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
             cache2 = new(read, sql);
 
@@ -168,7 +172,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc(signleQuery);
+            var read = _readGenerator.CreateReadSelectFunc(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
             cache2 = new(read, sql);
 
@@ -188,7 +192,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc<TParameter>(signleQuery);
+            var read = _readGenerator.CreateReadSelectFunc<TParameter>(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
             cache2 = new(read, sql);
 
@@ -210,7 +214,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc(firstQuery);
+            var read = _readGenerator.CreateReadSelectFunc(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
             cache2 = new(read, sql);
 
@@ -232,7 +236,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = new ReadGenerator<TEntity>(_metaService).CreateReadSelectFunc<TParameter>(firstQuery);
+            var read = _readGenerator.CreateReadSelectFunc<TParameter>(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
             cache2 = new(read, sql);
 
@@ -256,60 +260,101 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         throw new NotImplementedException();
     }
 
-    public void Add(LtConnection connection, IEnumerable<TEntity> entities)
+    const int _maxParameterCount = 2099;
+
+    public void Add(LtConnection connection, Span<TEntity> entities)
     {
+        var count = entities.Length;
+
         var cache = UpdateCache.Add;
         if (cache == null)
         {
-            var execute = new ReadGenerator<TEntity>(_metaService).CreateExecuteUpdateFunc(DbMethod.Add);
-            var sql = _sqlBuilder.CreateAddSql<TEntity>();
-            cache = new(execute, sql);
+            var execute = _addGenerator.CreateExecuteAddFunc();
+            cache = new(execute);
 
             UpdateCache.Add = cache;
         }
 
-        var command = connection.GetAddCommand<TEntity>(cache.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities.Slice(i, length);
 
-        cache.Execute(command, entities);
+            var sql = _sqlBuilder.CreateAddSql<TEntity>(length);
+            var command = connection.GetAddCommand<TEntity>(sql, length);
+            if (connection.CurrentTransaction != null)
+                command.Transaction = connection.CurrentTransaction.Inner;
+
+            cache.Execute(command, entities2);
+            i += length;
+        }
     }
 
-    public void Update(LtConnection connection, IEnumerable<TEntity> entities)
+    public void Update(LtConnection connection, Span<TEntity> entities)
     {
+        var count = entities.Length;
+
         var cache = UpdateCache.Update;
         if (cache == null)
         {
-            var execute = new ReadGenerator<TEntity>(_metaService).CreateExecuteUpdateFunc(DbMethod.Update);
-            var sql = _sqlBuilder.CreateUpdatedSql<TEntity>();
-            cache = new(execute, sql);
+            var execute = _readGenerator.CreateExecuteUpdateFunc(DbMethod.Update);
+            cache = new(execute);
 
             UpdateCache.Update = cache;
         }
 
-        var command = connection.GetUpdateCommand<TEntity>(cache.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities.Slice(i, length);
 
-        cache.Execute(command, entities);
+            var sql = _sqlBuilder.CreateUpdatedSql<TEntity>(length);
+            var command = connection.GetUpdateCommand<TEntity>(sql, length);
+            if (connection.CurrentTransaction != null)
+                command.Transaction = connection.CurrentTransaction.Inner;
+
+            cache.Execute(command, entities2);
+            i += length;
+        }
     }
 
-    public void Remove(LtConnection connection, IEnumerable<TEntity> entities)
+    public void Remove(LtConnection connection, Span<TEntity> entities)
     {
+        var count = entities.Length;
+
         var cache = UpdateCache.Remove;
         if (cache == null)
         {
-            var execute = new ReadGenerator<TEntity>(_metaService).CreateExecuteUpdateFunc(DbMethod.Remove);
-            var sql = _sqlBuilder.CreateRemoveSql<TEntity>();
-            cache = new(execute, sql);
+            var execute = _readGenerator.CreateExecuteUpdateFunc(DbMethod.Remove);
+            cache = new(execute);
 
             UpdateCache.Remove = cache;
         }
 
-        var command = connection.GetRemoveCommand<TEntity>(cache.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities.Slice(i, length);
 
-        cache.Execute(command, entities);
+            var sql = _sqlBuilder.CreateRemoveSql<TEntity>(length);
+            var command = connection.GetRemoveCommand<TEntity>(sql, length);
+            if (connection.CurrentTransaction != null)
+                command.Transaction = connection.CurrentTransaction.Inner;
+
+            cache.Execute(command, entities2);
+            i += length;
+        }
     }
 }

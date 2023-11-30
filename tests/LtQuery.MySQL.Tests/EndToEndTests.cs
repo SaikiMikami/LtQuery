@@ -228,4 +228,51 @@ public class EndToEndTests
         }
         catch { }
     }
+
+    [Fact]
+    public void Add_WithChild()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var user = new User(random.NextString(), null, null);
+            _connection.Add(user);
+            var category = new Category(random.NextString());
+            _connection.Add(category);
+            var blog = new Blog(random.NextString(), category, user, random.NextDateTime(), random.NextString());
+            _connection.Add(blog);
+
+            Assert.NotEqual(0, user.Id);
+            Assert.NotEqual(0, category.Id);
+            Assert.NotEqual(0, blog.Id);
+            Assert.Equal(user.Id, blog.UserId);
+            Assert.Equal(category.Id, blog.CategoryId);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = user.Id });
+            Assert.Equal(user.Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Add_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var users = new List<User>();
+            for (var i = 0; i < 1000; i++)
+            {
+                users.Add(new(random.NextString(), null, null));
+            }
+
+            _connection.AddRange(users);
+
+            Assert.NotEqual(0, users[0].Id);
+            Assert.Equal(users[0].Id + 1, users[1].Id);
+            Assert.Equal(users[0].Id + 2, users[2].Id);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = users[0].Id });
+            Assert.Equal(users[0].Name, user2.Name);
+        }
+    }
 }

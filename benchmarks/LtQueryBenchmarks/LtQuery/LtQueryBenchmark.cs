@@ -101,15 +101,16 @@ class LtQueryBenchmark : AbstractBenchmark
 
     public int AddRange()
     {
-        using (var unitOfWork = _connection.CreateUnitOfWork())
+        using (var tran = _connection.BeginTransaction())
         {
             var tags = new List<Tag>();
             for (var i = 0; i < 10; i++)
             {
                 tags.Add(new(_random.NextString()));
             }
-            unitOfWork.AddRange(tags);
-            unitOfWork.Commit();
+            _connection.AddRange(tags);
+
+            tran.Commit();
         }
         return 0;
     }

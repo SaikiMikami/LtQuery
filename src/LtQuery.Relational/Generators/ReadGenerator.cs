@@ -159,7 +159,7 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
     static int _updateNo = 0;
 
 
-    public Action<DbCommand, IEnumerable<TEntity>> CreateExecuteUpdateFunc(DbMethod dbMethod)
+    public ExecuteUpdate<TEntity> CreateExecuteUpdateFunc(DbMethod dbMethod)
     {
 #if SaveDynamicAssmembly
         var assmName = new AssemblyName(_assemblyName);
@@ -167,85 +167,76 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
         var module = assm.DefineDynamicModule("DynamicModule");
         var className = $"{_className}_{_updateNo++}";
         var type = module.DefineType(className, TypeAttributes.Public, typeof(object));
-        var method = type.DefineMethod(_updateMethodName, MethodAttributes.Public | MethodAttributes.Static, null, new Type[] { typeof(DbCommand), typeof(IEnumerable<TEntity>) });
+        var method = type.DefineMethod(_updateMethodName, MethodAttributes.Public | MethodAttributes.Static, null, new Type[] { typeof(DbCommand), typeof(Span<TEntity>) });
 
 #else
-        var method = new DynamicMethod($"{_updateMethodName}_{_updateNo++}", null, new Type[] { typeof(DbCommand), typeof(IEnumerable<TEntity>) }, GetType().Module, true);
+        var method = new DynamicMethod($"{_updateMethodName}_{_updateNo++}", null, new Type[] { typeof(DbCommand), typeof(Span<TEntity>) }, GetType().Module, true);
 #endif
         var il = method.GetILGenerator();
 
         var meta = _metaService.GetEntityMeta<TEntity>();
 
-        var enumerator = il.DeclareLocal(typeof(IEnumerator<TEntity>));
         var reader = il.DeclareLocal(typeof(DbDataReader));
 
-        // foreach(var entity in entities)
-        var entity = il.DeclareLocal(typeof(TEntity));
-        var foreachEnd = il.DefineLabel();
-        var tryStart = il.DefineLabel();
-        il.Emit(OpCodes.Ldarg_1);
-        il.EmitCall(Cast<TEntity>.IEnumerable_GetEnumerator);
-        il.EmitStloc(enumerator);
-        // try
-        il.BeginExceptionBlock();
-        il.Emit(OpCodes.Br, foreachEnd);
-        {
-            il.MarkLabel(tryStart);
+        var index = il.DeclareLocal(typeof(int));
+        il.EmitLdc_I4(0);
+        il.EmitStloc(index);
 
-            // entity = enumerator.Current
-            il.EmitLdloc(enumerator);
-            il.EmitCall(Cast<TEntity>.IEnumerator_get_Current);
+        // for(var i = 0 ; i < entities.Length; i++)
+        var i = il.DeclareLocal(typeof(int));
+        var entity = il.DeclareLocal(typeof(TEntity));
+        var forStart = il.DefineLabel();
+        var forEnd = il.DefineLabel();
+        il.EmitLdc_I4(0);
+        il.EmitStloc(i);
+        il.Emit(OpCodes.Br, forEnd);
+        {
+            il.MarkLabel(forStart);
+
+            // var entity = entities[i]
+            il.EmitLdarga_S(1);
+            il.EmitLdloc(i);
+            il.EmitCall(Cast<TEntity>.Span_get_Item);
+            il.Emit(OpCodes.Ldind_Ref);
             il.EmitStloc(entity);
 
-            // command.Parameter[XXX].Value = Entity.XXX
-            emitAddParameters(il, entity, dbMethod);
+            emitAddParameters(il, entity, index, dbMethod);
 
-            // using(var reader = command.ExecuteReader())
-            il.Emit(OpCodes.Ldarg_0);
-            il.EmitCall(DbCommand_ExecuteReader);
-            il.EmitStloc(reader);
-            il.BeginExceptionBlock();
-            {
-                // reader.Read()
-                il.EmitLdloc(reader);
-                il.EmitCall(DbDataReader_Read);
-                il.Emit(OpCodes.Pop);
-                if (dbMethod == DbMethod.Add)
-                {
-                    // entity.Id = reader.GetXXX(0)
-                    il.EmitLdloc(entity);
-                    EmitCallReader_Read(il, reader, meta.Key.Type, 0);
-                    il.EmitCall(meta.Key.Info.GetSetMethod()!);
-                }
-            }
-            // finally
-            {
-                // reader?.Dispose()
-                var ifEnd = il.DefineLabel();
-                il.BeginFinallyBlock();
-                il.EmitLdloc(reader);
-                il.Emit(OpCodes.Brfalse_S, ifEnd);
-                il.EmitLdloc(reader);
-                il.EmitCall(IDisposable_Dispose);
-                il.MarkLabel(ifEnd);
-                il.EndExceptionBlock();
-            }
+            // i++
+            il.EmitLdloc(i);
+            il.EmitLdc_I4(1);
+            il.Emit(OpCodes.Add);
+            il.EmitStloc(i);
+
+            // foreach end
+            il.MarkLabel(forEnd);
+            il.EmitLdloc(i);
+            il.EmitLdarga_S(1);
+            il.EmitCall(Cast<TEntity>.Span_get_Length);
+            il.Emit(OpCodes.Blt, forStart);
         }
-        // foreach block end
-        il.MarkLabel(foreachEnd);
-        il.EmitLdloc(enumerator);
-        il.EmitCall(IEnumerator_MoveNext);
-        il.Emit(OpCodes.Brtrue, tryStart);
 
+        // using(var reader = command.ExecuteReader())
+        il.Emit(OpCodes.Ldarg_0);
+        il.EmitCall(DbCommand_ExecuteReader);
+        il.EmitStloc(reader);
+        il.BeginExceptionBlock();
+        {
+            // reader.Read()
+            il.EmitLdloc(reader);
+            il.EmitCall(DbDataReader_Read);
+            il.Emit(OpCodes.Pop);
+        }
         // finally
         {
-            var finallyEnd = il.DefineLabel();
+            // reader?.Dispose()
+            var ifEnd = il.DefineLabel();
             il.BeginFinallyBlock();
-            il.EmitLdloc(enumerator);
-            il.Emit(OpCodes.Brfalse_S, finallyEnd);
-            il.EmitLdloc(enumerator);
+            il.EmitLdloc(reader);
+            il.Emit(OpCodes.Brfalse_S, ifEnd);
+            il.EmitLdloc(reader);
             il.EmitCall(IDisposable_Dispose);
-            il.MarkLabel(finallyEnd);
+            il.MarkLabel(ifEnd);
             il.EndExceptionBlock();
         }
 
@@ -256,9 +247,9 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
         var type2 = type.CreateType();
         save($@"{Environment.CurrentDirectory}\{_assemblyName}.dll", type2);
 
-        return (Action<DbCommand, IEnumerable<TEntity>>)Delegate.CreateDelegate(typeof(Action<DbCommand, IEnumerable<TEntity>>), type2.GetMethod(_updateMethodName)!);
+        return (ExecuteUpdate<TEntity>)Delegate.CreateDelegate(ExecuteUpdate<TEntity>), type2.GetMethod(_updateMethodName)!);
 #else
-        return method.CreateDelegate<Action<DbCommand, IEnumerable<TEntity>>>();
+        return method.CreateDelegate<ExecuteUpdate<TEntity>>();
 #endif
     }
 
@@ -291,29 +282,28 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
         }
     }
 
-    void emitAddParameters(ILGenerator il, LocalBuilder entity, DbMethod dbMethod)
+    void emitAddParameters(ILGenerator il, LocalBuilder entity, LocalBuilder index, DbMethod dbMethod)
     {
         var meta = _metaService.GetEntityMeta<TEntity>();
-        var index = 0;
         for (var i = 0; i < meta.Properties.Count; i++)
         {
             var property = meta.Properties[i];
             switch (dbMethod)
             {
-                case DbMethod.Add:
-                    if (property.IsKey)
-                        continue;   // FIXME: not support add auto increment
-                    break;
                 case DbMethod.Remove:
                     if (!property.IsKey)
                         continue;
                     break;
             }
 
-            // command.Parameter[XXX].Value = Entity.XXX
+            // command.Parameter[index++].Value = Entity.XXX
             il.Emit(OpCodes.Ldarg_0);
             il.EmitCall(DbCommand_get_Parameters);
-            il.EmitLdc_I4(index);
+            il.EmitLdloc(index);
+            il.Emit(OpCodes.Dup);
+            il.EmitLdc_I4(1);
+            il.Emit(OpCodes.Add);
+            il.EmitStloc(index);
             il.EmitCall(DbParameterCollection_get_Item);
 
             il.EmitLdloc(entity);
@@ -348,7 +338,7 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
                     il.Emit(OpCodes.Box, parameterType);
 
                 // ?? DbNull.Value
-                if (parameterType.IsClass)
+                if (property.Info.IsNullableReference())
                 {
                     var label = il.DefineLabel();
                     il.Emit(OpCodes.Dup);
@@ -360,7 +350,6 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
             }
 
             il.EmitCall(DbParameter_set_Value);
-            index++;
         }
     }
 

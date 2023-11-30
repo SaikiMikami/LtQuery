@@ -247,6 +247,74 @@ public class EndToEndTests
             Assert.NotEqual(0, blog.Id);
             Assert.Equal(user.Id, blog.UserId);
             Assert.Equal(category.Id, blog.CategoryId);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = user.Id });
+            Assert.Equal(user.Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Add_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var users = new List<User>();
+            for (var i = 0; i < 1000; i++)
+            {
+                users.Add(new(random.NextString(), null, null));
+            }
+
+            _connection.AddRange(users);
+
+            Assert.NotEqual(0, users[0].Id);
+            Assert.Equal(users[0].Id + 1, users[1].Id);
+            Assert.Equal(users[0].Id + 2, users[2].Id);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = users[0].Id });
+            Assert.Equal(users[0].Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Upddate_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var users = new List<User>();
+            for (var i = 0; i < 1000; i++)
+            {
+                users.Add(new(i + 1, random.NextString(), null, null));
+            }
+
+            _connection.UpdateRange(users);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = users[0].Id });
+            Assert.Equal(users[0].Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Remove_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var postss = new List<Post>();
+            for (var i = 0; i < 1000; i++)
+            {
+                postss.Add(new() { Id = i + 1 });
+            }
+
+            _connection.RemoveRange(postss);
+
+            try
+            {
+                _connection.Single(Lt.Query<Post>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = postss[0].Id });
+                Assert.Fail();
+            }
+            catch { }
         }
     }
 }

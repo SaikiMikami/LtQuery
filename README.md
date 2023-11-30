@@ -72,6 +72,17 @@ Result of `connection.Select(Lt.Query<Blog>().Include(_ => _.Posts).Take(20))`
 | Dapper  | 4.718 ms | 0.0735 ms | 0.0651 ms | 351.5625 | 195.3125 |   1.62 MB |
 | EFCore  | 7.007 ms | 0.0736 ms | 0.0688 ms | 554.6875 | 367.1875 |    2.6 MB |
 
+## AddRange(10)
+
+Result of `connection.AddRange(blogs)`
+
+| Method  | Mean       | Error    | StdDev   | Gen0    | Allocated |
+|-------- |-----------:|---------:|---------:|--------:|----------:|
+| ADO.NET |   361.4 us |  6.49 us |  8.44 us |  3.9063 |   8.09 KB |
+| **LtQuery** |   **351.0 us** |  **5.51 us** |  **5.16 us** |  **6.3477** |  **13.73 KB** |
+| Dapper  |   365.9 us |  5.79 us |  5.42 us |  5.8594 |  12.67 KB |
+| EFCore  | 1,001.4 us | 20.01 us | 41.78 us | 78.1250 | 161.88 KB |
+
 
 # Performance-aware code
 In LtQuery, when the user holds the query object, 

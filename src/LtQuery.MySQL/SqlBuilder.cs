@@ -37,7 +37,7 @@ class SqlBuilder : ISqlBuilder
         }
     }
 
-    public string CreateAddSql<TEntity>() where TEntity : class
+    public string CreateAddSql<TEntity>(int count) where TEntity : class
     {
         var meta = _metaService.GetEntityMeta<TEntity>();
 
@@ -46,7 +46,7 @@ class SqlBuilder : ISqlBuilder
         var isFirst = true;
         foreach (var property in meta.Properties)
         {
-            if (property.IsKey)
+            if (property.IsAutoIncrement)
                 continue;
             if (!isFirst)
                 sqlb.Append(", ");
@@ -54,75 +54,107 @@ class SqlBuilder : ISqlBuilder
                 isFirst = false;
             sqlb.Append('`').Append(property.Name).Append('`');
         }
-        sqlb.Append(") VALUES (");
+        sqlb.Append(") VALUES ");
+
         isFirst = true;
-        foreach (var property in meta.Properties)
+        for (var i = 0; i < count; i++)
         {
-            if (property.IsKey)
-                continue;
             if (!isFirst)
                 sqlb.Append(", ");
             else
                 isFirst = false;
-            sqlb.Append('@').Append(property.Name);
-        }
-        sqlb.Append("); ");
 
-        sqlb.Append("SELECT LAST_INSERT_ID()");
+            sqlb.Append('(');
+
+            var isFirst2 = true;
+            foreach (var property in meta.Properties)
+            {
+                if (property.IsAutoIncrement)
+                    continue;
+                if (!isFirst2)
+                    sqlb.Append(", ");
+                else
+                    isFirst2 = false;
+                sqlb.Append('@').Append(i).Append('_').Append(property.Name);
+            }
+            sqlb.Append(')');
+        }
+
+        sqlb.Append("; SELECT LAST_INSERT_ID()");
 
         return sqlb.ToString();
     }
 
-    public string CreateUpdatedSql<TEntity>() where TEntity : class
+    public string CreateUpdatedSql<TEntity>(int count) where TEntity : class
     {
         var meta = _metaService.GetEntityMeta<TEntity>();
 
         var sqlb = new StringBuilder();
-        sqlb.Append("UPDATE `").Append(meta.Name).Append("` SET ");
-        var isFirst = true;
-        foreach (var property in meta.Properties)
-        {
-            if (property.IsKey)
-                continue;
-            if (!isFirst)
-                sqlb.Append(", ");
-            else
-                isFirst = false;
-            sqlb.Append('`').Append(property.Name).Append("` = @").Append(property.Name);
-        }
-        sqlb.Append(" WHERE ");
 
-        isFirst = true;
-        foreach (var property in meta.Properties)
+        var isFirst = true;
+        for (var i = 0; i < count; i++)
         {
-            if (!property.IsKey)
-                continue;
             if (!isFirst)
-                sqlb.Append(" AND ");
+                sqlb.Append("; ");
             else
                 isFirst = false;
-            sqlb.Append('`').Append(property.Name).Append("` = @").Append(property.Name);
+
+            sqlb.Append("UPDATE `").Append(meta.Name).Append("` SET ");
+            var isFirst2 = true;
+            foreach (var property in meta.Properties)
+            {
+                if (property.IsKey)
+                    continue;
+                if (!isFirst2)
+                    sqlb.Append(", ");
+                else
+                    isFirst2 = false;
+                sqlb.Append('`').Append(property.Name).Append("` = @").Append(i).Append('_').Append(property.Name);
+            }
+            sqlb.Append(" WHERE ");
+
+            isFirst2 = true;
+            foreach (var property in meta.Properties)
+            {
+                if (!property.IsKey)
+                    continue;
+                if (!isFirst2)
+                    sqlb.Append(" AND ");
+                else
+                    isFirst2 = false;
+                sqlb.Append('`').Append(property.Name).Append("` = @").Append(i).Append('_').Append(property.Name);
+            }
         }
         return sqlb.ToString();
     }
 
-    public string CreateRemoveSql<TEntity>() where TEntity : class
+    public string CreateRemoveSql<TEntity>(int count) where TEntity : class
     {
         var meta = _metaService.GetEntityMeta<TEntity>();
 
         var sqlb = new StringBuilder();
-        sqlb.Append("DELETE FROM `").Append(meta.Name).Append("` WHERE ");
 
         var isFirst = true;
-        foreach (var property in meta.Properties)
+        for (var i = 0; i < count; i++)
         {
-            if (!property.IsKey)
-                continue;
             if (!isFirst)
-                sqlb.Append(" AND ");
+                sqlb.Append("; ");
             else
                 isFirst = false;
-            sqlb.Append('`').Append(property.Name).Append("` = @").Append(property.Name);
+
+            sqlb.Append("DELETE FROM `").Append(meta.Name).Append("` WHERE ");
+
+            var isFirst2 = true;
+            foreach (var property in meta.Properties)
+            {
+                if (!property.IsKey)
+                    continue;
+                if (!isFirst2)
+                    sqlb.Append(" AND ");
+                else
+                    isFirst2 = false;
+                sqlb.Append('`').Append(property.Name).Append("` = @").Append(i).Append('_').Append(property.Name);
+            }
         }
         return sqlb.ToString();
     }
