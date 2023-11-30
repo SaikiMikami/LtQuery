@@ -2,6 +2,7 @@
 using LtQuery.Elements.Values;
 using LtQuery.Metadata;
 using LtQuery.Relational.Generators;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
@@ -12,14 +13,14 @@ class LtConnection : ILtConnection
 {
     readonly LtConnectionPool _pool;
     readonly EntityMetaService _metaService;
-    readonly ISqlBuilder _sqlBuilder;
+    readonly IServiceProvider _provider;
     public ConnectionAndCommandCache ConnectionAndCommandCache { get; }
     DbConnection Connection => ConnectionAndCommandCache.Connection;
-    public LtConnection(LtConnectionPool pool, EntityMetaService metaService, ISqlBuilder sqlBuilder, ConnectionAndCommandCache connectionAndCommandCache)
+    public LtConnection(LtConnectionPool pool, EntityMetaService metaService, IServiceProvider provider, ConnectionAndCommandCache connectionAndCommandCache)
     {
         _pool = pool;
         _metaService = metaService;
-        _sqlBuilder = sqlBuilder;
+        _provider = provider;
         ConnectionAndCommandCache = connectionAndCommandCache;
     }
     public void Dispose()
@@ -36,7 +37,7 @@ class LtConnection : ILtConnection
         var repository = RepositoryCache<TEntity>.Repository;
         if (repository == null)
         {
-            repository = new Repository<TEntity>(_metaService, _sqlBuilder);
+            repository = _provider.GetRequiredService<IRepository<TEntity>>();
             RepositoryCache<TEntity>.Repository = repository;
         }
         return repository;
@@ -64,10 +65,10 @@ class LtConnection : ILtConnection
         if (typeof(IEnumerable).IsAssignableFrom(type))
             throw new InvalidOperationException("when add multiple, use AddRange()");
 
-        GetRepository<TEntity>().Add(this, new[] { entity });
+        GetRepository<TEntity>().Add(this, new Span<TEntity>(ref entity));
     }
 
-    public void AddRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Add(this, entities);
+    public void AddRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Add(this, entities.ToArray());
 
     public void Update<TEntity>(TEntity entity) where TEntity : class
     {
@@ -75,10 +76,10 @@ class LtConnection : ILtConnection
         if (typeof(IEnumerable).IsAssignableFrom(type))
             throw new InvalidOperationException("when update multiple, use UpdateRange()");
 
-        GetRepository<TEntity>().Update(this, new[] { entity });
+        GetRepository<TEntity>().Update(this, new Span<TEntity>(ref entity));
     }
 
-    public void UpdateRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Update(this, entities);
+    public void UpdateRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Update(this, entities.ToArray());
 
     public void Remove<TEntity>(TEntity entity) where TEntity : class
     {
@@ -86,10 +87,10 @@ class LtConnection : ILtConnection
         if (typeof(IEnumerable).IsAssignableFrom(type))
             throw new InvalidOperationException("when remove multiple, use RemoveRange()");
 
-        GetRepository<TEntity>().Remove(this, new[] { entity });
+        GetRepository<TEntity>().Remove(this, new Span<TEntity>(ref entity));
     }
 
-    public void RemoveRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Remove(this, entities);
+    public void RemoveRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Remove(this, entities.ToArray());
 
     public ILtUnitOfWork CreateUnitOfWork() => new LtUnitOfWork(this, _metaService);
 
@@ -181,40 +182,19 @@ class LtConnection : ILtConnection
         return command;
     }
 
-    public DbCommand GetAddCommand<TEntity>(string sql) where TEntity : class
+    public DbCommand GetAddCommand<TEntity>(string sql, int count) where TEntity : class
     {
-        var cache = ConnectionAndCommandCache.GetUpdateCommandCache<TEntity>();
-        var command = cache.Add;
-        if (command == null)
-        {
-            command = createUpdateCommand<TEntity>(sql, DbMethod.Add);
-            cache.Add = command;
-        }
-        return command;
+        return createUpdateCommand<TEntity>(sql, DbMethod.Add, count);
     }
 
-    public DbCommand GetUpdateCommand<TEntity>(string sql) where TEntity : class
+    public DbCommand GetUpdateCommand<TEntity>(string sql, int count) where TEntity : class
     {
-        var cache = ConnectionAndCommandCache.GetUpdateCommandCache<TEntity>();
-        var command = cache.Update;
-        if (command == null)
-        {
-            command = createUpdateCommand<TEntity>(sql, DbMethod.Update);
-            cache.Update = command;
-        }
-        return command;
+        return createUpdateCommand<TEntity>(sql, DbMethod.Update, count);
     }
 
-    public DbCommand GetRemoveCommand<TEntity>(string sql) where TEntity : class
+    public DbCommand GetRemoveCommand<TEntity>(string sql, int count) where TEntity : class
     {
-        var cache = ConnectionAndCommandCache.GetUpdateCommandCache<TEntity>();
-        var command = cache.Remove;
-        if (command == null)
-        {
-            command = createUpdateCommand<TEntity>(sql, DbMethod.Remove);
-            cache.Remove = command;
-        }
-        return command;
+        return createUpdateCommand<TEntity>(sql, DbMethod.Remove, count);
     }
 
     DbCommand createCommand<TEntity>(string sql, IReadOnlyList<ParameterValue> parameters) where TEntity : class
@@ -237,7 +217,7 @@ class LtConnection : ILtConnection
         return command;
     }
 
-    DbCommand createUpdateCommand<TEntity>(string sql, DbMethod dbMethod) where TEntity : class
+    DbCommand createUpdateCommand<TEntity>(string sql, DbMethod dbMethod, int count) where TEntity : class
     {
         if (Connection.State == ConnectionState.Closed)
             Connection.Open();
@@ -246,23 +226,26 @@ class LtConnection : ILtConnection
 
         var command = Connection.CreateCommand();
         command.CommandText = sql;
-        foreach (var property in meta.Properties)
+        for (var i = 0; i < count; i++)
         {
-            switch (dbMethod)
+            foreach (var property in meta.Properties)
             {
-                case DbMethod.Add:
-                    if (property.IsKey)
-                        continue;
-                    break;
-                case DbMethod.Remove:
-                    if (!property.IsKey)
-                        continue;
-                    break;
+                switch (dbMethod)
+                {
+                    case DbMethod.Add:
+                        if (property.IsAutoIncrement)
+                            continue;
+                        break;
+                    case DbMethod.Remove:
+                        if (!property.IsKey)
+                            continue;
+                        break;
+                }
+                var p = command.CreateParameter();
+                p.ParameterName = $"@{i}_{property.Name}";
+                p.DbType = getDbType(property.Type);
+                command.Parameters.Add(p);
             }
-            var p = command.CreateParameter();
-            p.ParameterName = $"@{property.Name}";
-            p.DbType = getDbType(property.Type);
-            command.Parameters.Add(p);
         }
         return command;
     }

@@ -17,17 +17,17 @@ SELECT t1.[Id], t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content] F
             return $"SELECT [Id], [Title], [CategoryId], [UserId], [DateTime], [Content] FROM [Blog]";
     }
 
-    public string CreateAddSql<TEntity>() where TEntity : class
+    public string CreateAddSql<TEntity>(int count) where TEntity : class
     {
         throw new NotImplementedException();
     }
 
-    public string CreateUpdatedSql<TEntity>() where TEntity : class
+    public string CreateUpdatedSql<TEntity>(int count) where TEntity : class
     {
         throw new NotImplementedException();
     }
 
-    public string CreateRemoveSql<TEntity>() where TEntity : class
+    public string CreateRemoveSql<TEntity>(int count) where TEntity : class
     {
         throw new NotImplementedException();
     }

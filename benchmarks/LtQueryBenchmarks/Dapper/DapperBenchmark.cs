@@ -169,17 +169,40 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
         return accum;
     }
 
-    const string addSql = @"
-INSERT INTO [Tag] ([Name]) VALUES(@Name);
-SELECT CONVERT(INT, SCOPE_IDENTITY())
-";
+    const string _addSql = @"
+INSERT INTO [Tag] ([Name])
+OUTPUT inserted.[Id] VALUES
+(@_0_Name),
+(@_1_Name),
+(@_2_Name),
+(@_3_Name),
+(@_4_Name),
+(@_5_Name),
+(@_6_Name),
+(@_7_Name),
+(@_8_Name),
+(@_9_Name)";
+
     public int AddRange()
     {
         using (var tran = _connection.BeginTransaction())
         {
-            for (var i = 0; i < 10; i++)
+            var ids = _connection.Query<int>(_addSql, new
             {
-                var id = _connection.QueryFirst<int>(addSql, new { Name = _random.NextString() }, tran);
+                _0_Name = _random.NextString(),
+                _1_Name = _random.NextString(),
+                _2_Name = _random.NextString(),
+                _3_Name = _random.NextString(),
+                _4_Name = _random.NextString(),
+                _5_Name = _random.NextString(),
+                _6_Name = _random.NextString(),
+                _7_Name = _random.NextString(),
+                _8_Name = _random.NextString(),
+                _9_Name = _random.NextString(),
+            }, tran);
+            foreach (var id in ids)
+            {
+
             }
 
             tran.Commit();

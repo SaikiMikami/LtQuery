@@ -1,5 +1,6 @@
 ﻿using LtQuery.Metadata;
 using LtQuery.Relational;
+using LtQuery.Relational.Generators;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data.Common;
 
@@ -11,5 +12,6 @@ public static class ServiceCollectionExtensions
     {
         _this.AddLtQueryRelational(modelConfiguration, createDbConnectionFunc, settings);
         _this.AddSingleton<ISqlBuilder, SqlBuilder>();
+        _this.AddSingleton(typeof(IAddGenerator<>), typeof(AddGenerator<>));
     }
 }

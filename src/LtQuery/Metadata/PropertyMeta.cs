@@ -18,4 +18,6 @@ public class PropertyMeta
     public Type Type => Info.PropertyType;
 
     public bool IsNullable => Type.IsNullable() || Info.IsNullableReference();
+
+    public virtual bool IsAutoIncrement => IsKey && Type != typeof(string);
 }

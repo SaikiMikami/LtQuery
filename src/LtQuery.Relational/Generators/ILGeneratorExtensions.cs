@@ -3,8 +3,11 @@ using System.Reflection.Emit;
 
 namespace LtQuery.Relational.Generators;
 
-static class ILGeneratorExtensions
+public static class ILGeneratorExtensions
 {
+    public static void EmitLdarga_S(this ILGenerator _this, int num)
+        => _this.Emit(OpCodes.Ldarga_S, (sbyte)num);
+
     public static void EmitLdloc(this ILGenerator _this, LocalBuilder local) => _this.EmitLdloc(local.LocalIndex);
     public static void EmitLdloc(this ILGenerator _this, int num)
     {
@@ -30,9 +33,7 @@ static class ILGeneratorExtensions
 
     public static void EmitLdloca_S(this ILGenerator _this, LocalBuilder local) => _this.EmitLdloca_S(local.LocalIndex);
     public static void EmitLdloca_S(this ILGenerator _this, int num)
-    {
-        _this.Emit(OpCodes.Ldloca_S, (sbyte)num);
-    }
+        => _this.Emit(OpCodes.Ldloca_S, (sbyte)num);
 
     public static void EmitStloc(this ILGenerator _this, LocalBuilder local) => _this.EmitStloc(local.LocalIndex);
     public static void EmitStloc(this ILGenerator _this, int num)

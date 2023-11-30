@@ -5,7 +5,7 @@ using System.Reflection.Emit;
 
 namespace LtQuery.Relational.Generators
 {
-    abstract class AbstractGenerator
+    public abstract class AbstractGenerator
     {
         protected static readonly Type IDisposableType = typeof(IDisposable);
         protected static readonly MethodInfo IDisposable_Dispose = IDisposableType.GetMethod("Dispose")!;
@@ -48,6 +48,18 @@ namespace LtQuery.Relational.Generators
 
             public static readonly Type IEnumeratorType = typeof(IEnumerator<TEntity>);
             public static readonly MethodInfo IEnumerator_get_Current = IEnumeratorType.GetProperty("Current")!.GetGetMethod()!;
+
+            public static readonly Type SpanType = typeof(Span<TEntity>);
+            public static readonly MethodInfo Span_get_Item = SpanType.GetProperty("Item")!.GetGetMethod()!;
+            public static readonly MethodInfo Span_get_Length = SpanType.GetProperty("Length")!.GetGetMethod()!;
+
+
+            public static readonly Type IReadOnlyCollectionType = typeof(IReadOnlyCollection<TEntity>);
+            public static readonly MethodInfo IReadOnlyCollectionType_get_Count = IReadOnlyCollectionType.GetProperty("Count")!.GetGetMethod()!;
+
+
+            public static readonly Type IReadOnlyListType = typeof(IReadOnlyList<TEntity>);
+            public static readonly MethodInfo IReadOnlyList_get_Item = IReadOnlyListType.GetProperty("Item")!.GetGetMethod()!;
         }
 
         protected static void EmitCallReader_Read(ILGenerator il, LocalBuilder reader, Type type, int index)

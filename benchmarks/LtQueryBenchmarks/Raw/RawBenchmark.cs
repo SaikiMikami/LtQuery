@@ -37,6 +37,16 @@ class RawBenchmark : AbstractBenchmark
         p1.ParameterName = "@Take";
         p1.DbType = DbType.Int32;
         _selectComplexCommand.Parameters.Add(p1);
+
+        var command = new SqlCommand(_addSql, _connection);
+        for (var i = 0; i < 10; i++)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = $"@{i}_Name";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+        }
+        _addCommand = command;
     }
 
     public void Cleanup()
@@ -244,30 +254,39 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
     }
 
 
-    const string addSql = @"
-INSERT INTO [Tag] ([Name]) VALUES(@Name);
-SELECT CONVERT(INT, SCOPE_IDENTITY())
-";
+    const string _addSql = @"
+INSERT INTO [Tag] ([Name])
+OUTPUT inserted.[Id] VALUES
+(@0_Name),
+(@1_Name),
+(@2_Name),
+(@3_Name),
+(@4_Name),
+(@5_Name),
+(@6_Name),
+(@7_Name),
+(@8_Name),
+(@9_Name)";
+
+    SqlCommand _addCommand = default!;
+
+
     public int AddRange()
     {
         using (var tran = _connection.BeginTransaction())
         {
-            var command = _connection.CreateCommand();
-            command.CommandText = addSql;
+            var command = _addCommand;
             command.Transaction = tran;
-            var p = command.CreateParameter();
-            p.ParameterName = "@Name";
-            p.DbType = DbType.String;
-            command.Parameters.Add(p);
-
             for (var i = 0; i < 10; i++)
             {
-                command.Parameters[0].Value = _random.NextString();
-                using (var reader = command.ExecuteReader())
-                {
-                    reader.Read();
+                command.Parameters[i].Value = _random.NextString();
+            }
 
-                    var id = reader.GetInt32(0);
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    reader.GetInt32(0);
                 }
             }
 

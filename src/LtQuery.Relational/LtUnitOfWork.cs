@@ -39,8 +39,11 @@ class LtUnitOfWork : ILtUnitOfWork
         public void Reflect(LtConnection connection)
         {
             connection.AddRange(Adding);
+            Adding.Clear();
             connection.UpdateRange(Updating);
+            Updating.Clear();
             connection.RemoveRange(Removing);
+            Removing.Clear();
         }
     }
 

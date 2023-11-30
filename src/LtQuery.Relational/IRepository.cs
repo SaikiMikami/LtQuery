@@ -14,7 +14,7 @@ interface IRepository<TEntity> where TEntity : class
     TEntity First(LtConnection connection, Query<TEntity> query);
     TEntity First<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values);
 
-    void Add(LtConnection connection, IEnumerable<TEntity> entities);
-    void Update(LtConnection connection, IEnumerable<TEntity> entities);
-    void Remove(LtConnection connection, IEnumerable<TEntity> entities);
+    void Add(LtConnection connection, Span<TEntity> entities);
+    void Update(LtConnection connection, Span<TEntity> entities);
+    void Remove(LtConnection connection, Span<TEntity> entities);
 }

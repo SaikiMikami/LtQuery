@@ -44,14 +44,14 @@ class QueryGenerator
 
             // while (reader.Read()) End
             il.MarkLabel(whileEndLabel);
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitCall(typeof(DbDataReader).GetMethod("Read")!);
             il.Emit(OpCodes.Brtrue, whileStartLabel);
         }
 
         foreach (var child in Children)
         {
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitCall(typeof(DbDataReader).GetMethod("NextResult")!);
             il.Emit(OpCodes.Pop);
 

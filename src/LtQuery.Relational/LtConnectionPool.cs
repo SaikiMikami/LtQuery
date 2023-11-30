@@ -8,13 +8,11 @@ class LtConnectionPool : IDisposable
 {
     readonly IServiceProvider _provider;
     readonly EntityMetaService _metaService;
-    readonly ISqlBuilder _sqlBuilder;
     public int MaxPoolSize { get; }
-    public LtConnectionPool(IServiceProvider provider, EntityMetaService metaService, ISqlBuilder sqlBuilder, LtSettings? settings)
+    public LtConnectionPool(IServiceProvider provider, EntityMetaService metaService, LtSettings? settings)
     {
         _provider = provider;
         _metaService = metaService;
-        _sqlBuilder = sqlBuilder;
         MaxPoolSize = settings?.MaxConnectionPoolSize ?? 100;
     }
 
@@ -55,7 +53,7 @@ class LtConnectionPool : IDisposable
         {
             _locker.ExitUpgradeableReadLock();
         }
-        return new(this, _metaService, _sqlBuilder, connectionAndCommandCache);
+        return new(this, _metaService, _provider, connectionAndCommandCache);
     }
 
     public void Release(LtConnection connection)
