@@ -139,6 +139,24 @@ public class EndToEndTests
         Assert.Null(account);
     }
 
+    static readonly Query<Blog> _countQuery = Lt.Query<Blog>().ToImmutable();
+
+    [Fact]
+    public void Count()
+    {
+        var count = _connection.Count(_countQuery);
+        Assert.Equal(10000, count);
+    }
+
+    static readonly Query<Blog> _countWithParameterQuery = Lt.Query<Blog>().Where(_ => _.Id < Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void Count_WithParameter()
+    {
+        var count = _connection.Count(_countWithParameterQuery, new { Id = 5000 });
+        Assert.Equal(4999, count);
+    }
+
     static readonly Query<User> _getUser = Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
 
     [Fact]

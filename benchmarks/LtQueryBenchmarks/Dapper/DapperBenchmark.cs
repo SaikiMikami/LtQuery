@@ -25,7 +25,6 @@ public class DapperBenchmark : AbstractBenchmark
             var entities = multi.Read<Blog>().ToArray();
             var posts = multi.Read<Post>().ToArray();
         }
-
     }
 
     public void Cleanup()

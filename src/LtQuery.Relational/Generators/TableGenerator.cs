@@ -369,7 +369,7 @@ class TableGenerator : AbstractGenerator
             }
             il.MarkLabel(ifEnd);
         }
-        else if (property.Info.IsNullableReference())
+        else if (property.Info.IsNullableReference() != false)
         {
             var type = property.Type;
             var ifEnd = il.DefineLabel();

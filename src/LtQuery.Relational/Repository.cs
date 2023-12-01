@@ -1,7 +1,6 @@
 ﻿using LtQuery.Elements;
 using LtQuery.Metadata;
 using LtQuery.Relational.Generators;
-using System.Data.Common;
 using System.Runtime.CompilerServices;
 
 namespace LtQuery.Relational;
@@ -20,21 +19,11 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         _generator = new ReadGenerator<TEntity>(_metaService);
     }
 
-    class Cache2
+    class Cache2<TDelegate>
     {
-        public Func<DbCommand, IReadOnlyList<TEntity>> Read { get; set; }
+        public TDelegate Read { get; set; }
         public string Sql { get; }
-        public Cache2(Func<DbCommand, IReadOnlyList<TEntity>> read, string sql)
-        {
-            Read = read;
-            Sql = sql;
-        }
-    }
-    class Cache2<TParameter>
-    {
-        public Func<DbCommand, TParameter, IReadOnlyList<TEntity>> Read { get; set; }
-        public string Sql { get; }
-        public Cache2(Func<DbCommand, TParameter, IReadOnlyList<TEntity>> read, string sql)
+        public Cache2(TDelegate read, string sql)
         {
             Read = read;
             Sql = sql;
@@ -44,15 +33,17 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
     interface IReaderCache { }
     class Cache : IReaderCache
     {
-        public Cache2? Select { get; set; }
-        public Cache2? First { get; set; }
-        public Cache2? Single { get; set; }
+        public Cache2<ExecuteSelect<TEntity>>? Select { get; set; }
+        public Cache2<ExecuteSelect<TEntity>>? First { get; set; }
+        public Cache2<ExecuteSelect<TEntity>>? Single { get; set; }
+        public Cache2<ExecuteCount>? Count { get; set; }
     }
     class Cache<TParameter> : IReaderCache
     {
-        public Cache2<TParameter>? Select { get; set; }
-        public Cache2<TParameter>? First { get; set; }
-        public Cache2<TParameter>? Single { get; set; }
+        public Cache2<ExecuteSelect<TEntity, TParameter>>? Select { get; set; }
+        public Cache2<ExecuteSelect<TEntity, TParameter>>? First { get; set; }
+        public Cache2<ExecuteSelect<TEntity, TParameter>>? Single { get; set; }
+        public Cache2<ExecuteCount<TParameter>>? Count { get; set; }
     }
 
     readonly ConditionalWeakTable<Query<TEntity>, IReaderCache> _caches = new();
@@ -157,7 +148,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Select = cache2;
         }
 
-        var command = connection.GetSelectCommand(query, cache2.Sql);
+        var command = connection.GetSelectCommand<TEntity, TParameter>(query, cache2.Sql);
 
         return cache2.Read(command, values);
     }
@@ -197,7 +188,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.Single = cache2;
         }
 
-        var command = connection.GetSingleCommand(query, cache2.Sql);
+        var command = connection.GetSingleCommand<TEntity, TParameter>(query, cache2.Sql);
         if (connection.CurrentTransaction != null)
             command.Transaction = connection.CurrentTransaction.Inner;
 
@@ -241,7 +232,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             cache.First = cache2;
         }
 
-        var command = connection.GetFirstCommand(query, cache2.Sql);
+        var command = connection.GetFirstCommand<TEntity, TParameter>(query, cache2.Sql);
         if (connection.CurrentTransaction != null)
             command.Transaction = connection.CurrentTransaction.Inner;
 
@@ -250,12 +241,38 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
     public int Count(LtConnection connection, Query<TEntity> query)
     {
-        throw new NotImplementedException();
+        var cache = getReaderCache(query);
+
+        var cache2 = cache.Count;
+        if (cache2 == null)
+        {
+            var read = _generator.CreateReadCountFunc();
+            var sql = _sqlBuilder.CreateCountSql(query);
+            cache2 = new(read, sql);
+            cache.Count = cache2;
+        }
+
+        var command = connection.GetCountCommand(query, cache2.Sql);
+
+        return cache2.Read(command);
     }
 
     public int Count<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
     {
-        throw new NotImplementedException();
+        var cache = getReaderCache<TParameter>(query);
+
+        var cache2 = cache.Count;
+        if (cache2 == null)
+        {
+            var read = _generator.CreateReadCountFunc<TParameter>();
+            var sql = _sqlBuilder.CreateCountSql(query);
+            cache2 = new(read, sql);
+            cache.Count = cache2;
+        }
+
+        var command = connection.GetCountCommand<TEntity, TParameter>(query, cache2.Sql);
+
+        return cache2.Read(command, values);
     }
 
     const int _maxParameterCount = 2099;

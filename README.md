@@ -76,7 +76,7 @@ Result of `connection.Select(Lt.Query<Blog>().Include(_ => _.Posts).Take(20))`
 
 Result of `connection.AddRange(blogs)`
 
-| Method  | Mean       | Error    | StdDev   | Gen0    | Allocated |
+| ORM     | Mean       | Error    | StdDev   | Gen0    | Allocated |
 |-------- |-----------:|---------:|---------:|--------:|----------:|
 | ADO.NET |   361.4 us |  6.49 us |  8.44 us |  3.9063 |   8.09 KB |
 | **LtQuery** |   **351.0 us** |  **5.51 us** |  **5.16 us** |  **6.3477** |  **13.73 KB** |

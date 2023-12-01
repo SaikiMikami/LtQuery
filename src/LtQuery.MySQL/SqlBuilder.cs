@@ -13,16 +13,19 @@ class SqlBuilder : ISqlBuilder
         _metaService = metaService;
     }
 
-    public string CreateCountSql<TEntity>(Query<TEntity> query) where TEntity : class
-    {
-        throw new NotImplementedException();
-    }
-
     public string CreateSelectSql<TEntity>(Query<TEntity> query) where TEntity : class
     {
         var strb = new StringBuilder();
         var root = Root.Create(_metaService, query);
         appendSelectSqls(strb, root.RootQuery);
+        return strb.ToString();
+    }
+
+    public string CreateCountSql<TEntity>(Query<TEntity> query) where TEntity : class
+    {
+        var strb = new StringBuilder();
+        var root = Root.Create(_metaService, query);
+        strb.AppendCountSql(root.RootQuery);
         return strb.ToString();
     }
 
@@ -174,6 +177,17 @@ static class StringBuilderExtensions
         return _this;
     }
 
+    public static StringBuilder AppendCountSql(this StringBuilder _this, QueryNode query)
+    {
+        _this.appendSelectForCount(query);
+        _this.appendFromAndJoinClause(query);
+        _this.appendWhereClause(query);
+        _this.appendOrderBys(query);
+        _this.appendTakeAndSkip(query);
+
+        return _this;
+    }
+
     static StringBuilder appendSelectClause(this StringBuilder _this, QueryNode query, TableNode2? joinToTable)
     {
         var root = query.Root;
@@ -225,7 +239,14 @@ static class StringBuilderExtensions
         }
         action(query.RootTable);
         return _this;
+    }
 
+    static StringBuilder appendSelectForCount(this StringBuilder _this, QueryNode query)
+    {
+        var table = query.RootTable.Node;
+        var key = table.Key;
+        _this.Append("SELECT COUNT(").appendProperty(table, key).Append(')');
+        return _this;
     }
 
     static StringBuilder appendFromAndJoinClause(this StringBuilder _this, QueryNode query)
