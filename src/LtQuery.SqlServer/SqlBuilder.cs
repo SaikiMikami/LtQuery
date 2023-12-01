@@ -54,8 +54,12 @@ class SqlBuilder : ISqlBuilder
                 isFirst = false;
             sqlb.Append('[').Append(property.Name).Append(']');
         }
-        sqlb.Append(") OUTPUT inserted.[").Append(meta.Key.Name).Append("] VALUES ");
+        sqlb.Append(") ");
 
+        if (meta.Key.IsAutoIncrement)
+            sqlb.Append("OUTPUT inserted.[").Append(meta.Key.Name).Append("] ");
+
+        sqlb.Append("VALUES ");
         isFirst = true;
         for (var i = 0; i < count; i++)
         {
@@ -133,26 +137,26 @@ class SqlBuilder : ISqlBuilder
 
         var sqlb = new StringBuilder();
 
+        var keys = meta.Properties.Where(_ => _.IsKey);
+
+
+        sqlb.Append("DELETE FROM [").Append(meta.Name).Append("] WHERE ");
+
         var isFirst = true;
         for (var i = 0; i < count; i++)
         {
             if (!isFirst)
-                sqlb.Append("; ");
+                sqlb.Append(" OR ");
             else
                 isFirst = false;
-
-            sqlb.Append("DELETE FROM [").Append(meta.Name).Append("] WHERE ");
-
             var isFirst2 = true;
-            foreach (var property in meta.Properties)
+            foreach (var key in keys)
             {
-                if (!property.IsKey)
-                    continue;
                 if (!isFirst2)
                     sqlb.Append(" AND ");
                 else
                     isFirst2 = false;
-                sqlb.Append(property.Name).Append(" = @").Append(i).Append('_').Append(property.Name);
+                sqlb.Append(key.Name).Append(" = @").Append(i).Append('_').Append(key.Name);
             }
         }
         return sqlb.ToString();

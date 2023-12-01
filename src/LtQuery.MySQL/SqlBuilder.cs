@@ -80,7 +80,8 @@ class SqlBuilder : ISqlBuilder
             sqlb.Append(')');
         }
 
-        sqlb.Append("; SELECT LAST_INSERT_ID()");
+        if (meta.Key.IsAutoIncrement)
+            sqlb.Append(" RETURNING `").Append(meta.Key.Name).Append('`');
 
         return sqlb.ToString();
     }

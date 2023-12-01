@@ -1,5 +1,4 @@
-﻿using LtQuery.Relational.Generators;
-using LtQuery.TestData;
+﻿using LtQuery.TestData;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,7 +11,6 @@ public class ServiceProviderFactory
         var collection = new ServiceCollection();
         collection.AddLtQueryRelational(new ModelConfiguration(), _ => new SqlConnection(Constants.SqlServerConnectionString));
         collection.AddSingleton<ISqlBuilder, TestSqlBuilder>();
-        collection.AddSingleton(typeof(IAddGenerator<>), typeof(AddGenerator<>));
 
         return collection.BuildServiceProvider();
     }

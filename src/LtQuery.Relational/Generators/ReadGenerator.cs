@@ -222,10 +222,47 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
         il.EmitStloc(reader);
         il.BeginExceptionBlock();
         {
-            // reader.Read()
-            il.EmitLdloc(reader);
-            il.EmitCall(DbDataReader_Read);
-            il.Emit(OpCodes.Pop);
+            if (dbMethod == DbMethod.Add && meta.Key.IsAutoIncrement)
+            {
+                // i = 0
+                il.EmitLdc_I4(0);
+                il.EmitStloc(i);
+
+                // while(reader.Read()) Start
+                var whileStartLabel = il.DefineLabel();
+                var whileEndLabel = il.DefineLabel();
+                il.Emit(OpCodes.Br_S, whileEndLabel);
+                {
+                    il.MarkLabel(whileStartLabel);
+
+                    // entities[i++].Id = reader.GetInt32(0);
+                    il.EmitLdarga_S(1);
+                    il.EmitLdloc(i);
+                    il.Emit(OpCodes.Dup);
+                    il.EmitLdc_I4(1);
+                    il.Emit(OpCodes.Add);
+                    il.EmitStloc(i);
+                    il.EmitCall(Cast<TEntity>.Span_get_Item);
+                    il.Emit(OpCodes.Ldind_Ref);
+                    il.EmitLdloc(reader);
+                    il.EmitLdc_I4(0);
+                    il.EmitCall(DbDataReader_GetInt32);
+                    il.EmitCall(meta.Key.Info.GetSetMethod()!);
+
+                    // while (reader.Read()) End
+                    il.MarkLabel(whileEndLabel);
+                    il.EmitLdloc(reader);
+                    il.EmitCall(typeof(DbDataReader).GetMethod("Read")!);
+                    il.Emit(OpCodes.Brtrue_S, whileStartLabel);
+                }
+            }
+            else
+            {
+                // reader.Read()
+                il.EmitLdloc(reader);
+                il.EmitCall(DbDataReader_Read);
+                il.Emit(OpCodes.Pop);
+            }
         }
         // finally
         {
@@ -290,6 +327,11 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
             var property = meta.Properties[i];
             switch (dbMethod)
             {
+                case DbMethod.Add:
+                    if (property.IsAutoIncrement)
+                        continue;
+                    break;
+
                 case DbMethod.Remove:
                     if (!property.IsKey)
                         continue;

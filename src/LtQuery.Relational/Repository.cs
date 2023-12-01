@@ -10,16 +10,14 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 {
     readonly EntityMetaService _metaService;
     readonly ISqlBuilder _sqlBuilder;
-    readonly IAddGenerator<TEntity> _addGenerator;
     readonly EntityMeta _meta;
-    readonly ReadGenerator<TEntity> _readGenerator;
-    public Repository(EntityMetaService metaService, ISqlBuilder sqlBuilder, IAddGenerator<TEntity> addGenerator)
+    readonly ReadGenerator<TEntity> _generator;
+    public Repository(EntityMetaService metaService, ISqlBuilder sqlBuilder)
     {
         _metaService = metaService;
         _sqlBuilder = sqlBuilder;
-        _addGenerator = addGenerator;
         _meta = _metaService.GetEntityMeta<TEntity>();
-        _readGenerator = new ReadGenerator<TEntity>(_metaService);
+        _generator = new ReadGenerator<TEntity>(_metaService);
     }
 
     class Cache2
@@ -134,7 +132,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = _readGenerator.CreateReadSelectFunc(query);
+            var read = _generator.CreateReadSelectFunc(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
             cache2 = new(read, sql);
             cache.Select = cache2;
@@ -152,7 +150,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = _readGenerator.CreateReadSelectFunc<TParameter>(query);
+            var read = _generator.CreateReadSelectFunc<TParameter>(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
             cache2 = new(read, sql);
 
@@ -172,7 +170,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = _readGenerator.CreateReadSelectFunc(signleQuery);
+            var read = _generator.CreateReadSelectFunc(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
             cache2 = new(read, sql);
 
@@ -192,7 +190,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = _readGenerator.CreateReadSelectFunc<TParameter>(signleQuery);
+            var read = _generator.CreateReadSelectFunc<TParameter>(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
             cache2 = new(read, sql);
 
@@ -214,7 +212,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = _readGenerator.CreateReadSelectFunc(firstQuery);
+            var read = _generator.CreateReadSelectFunc(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
             cache2 = new(read, sql);
 
@@ -236,7 +234,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         if (cache2 == null)
         {
             var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = _readGenerator.CreateReadSelectFunc<TParameter>(firstQuery);
+            var read = _generator.CreateReadSelectFunc<TParameter>(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
             cache2 = new(read, sql);
 
@@ -269,7 +267,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache = UpdateCache.Add;
         if (cache == null)
         {
-            var execute = _addGenerator.CreateExecuteAddFunc();
+            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Add);
             cache = new(execute);
 
             UpdateCache.Add = cache;
@@ -301,7 +299,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache = UpdateCache.Update;
         if (cache == null)
         {
-            var execute = _readGenerator.CreateExecuteUpdateFunc(DbMethod.Update);
+            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Update);
             cache = new(execute);
 
             UpdateCache.Update = cache;
@@ -333,7 +331,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         var cache = UpdateCache.Remove;
         if (cache == null)
         {
-            var execute = _readGenerator.CreateExecuteUpdateFunc(DbMethod.Remove);
+            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Remove);
             cache = new(execute);
 
             UpdateCache.Remove = cache;
