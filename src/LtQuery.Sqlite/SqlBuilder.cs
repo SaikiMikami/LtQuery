@@ -79,8 +79,9 @@ class SqlBuilder : ISqlBuilder
             }
             sqlb.Append(')');
         }
-        if (meta.Properties.Any(_ => _.IsAutoIncrement))
-            sqlb.Append("; SELECT ROWID FROM `").Append(meta.Type.Name).Append("` WHERE ROWID = last_insert_rowid()");
+
+        if (meta.Key.IsAutoIncrement)
+            sqlb.Append(" RETURNING `").Append(meta.Key.Name).Append('`');
 
         return sqlb.ToString();
     }
@@ -134,6 +135,8 @@ class SqlBuilder : ISqlBuilder
 
         var sqlb = new StringBuilder();
 
+        var keys = meta.Properties.Where(_ => _.IsKey);
+
         var isFirst = true;
         for (var i = 0; i < count; i++)
         {
@@ -145,15 +148,13 @@ class SqlBuilder : ISqlBuilder
             sqlb.Append("DELETE FROM `").Append(meta.Name).Append("` WHERE ");
 
             var isFirst2 = true;
-            foreach (var property in meta.Properties)
+            foreach (var key in keys)
             {
-                if (!property.IsKey)
-                    continue;
                 if (!isFirst2)
                     sqlb.Append(" AND ");
                 else
                     isFirst2 = false;
-                sqlb.Append('`').Append(property.Name).Append("` = @").Append(i).Append('_').Append(property.Name);
+                sqlb.Append('`').Append(key.Name).Append("` = @").Append(i).Append('_').Append(key.Name);
             }
         }
         return sqlb.ToString();
