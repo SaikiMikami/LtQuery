@@ -11,7 +11,7 @@ static class TypeExtensions
         return _this.GetGenericTypeDefinition() == typeof(Nullable<>);
     }
 
-    public static bool IsNullableReference(this PropertyInfo _this)
+    public static bool? IsNullableReference(this PropertyInfo _this)
     {
         var nullabilityInfoContext = new NullabilityInfoContext();
         switch (nullabilityInfoContext.Create(_this).ReadState)
@@ -21,7 +21,7 @@ static class TypeExtensions
             case NullabilityState.NotNull:
                 return false;
             default:
-                throw new InvalidOperationException("Nullable reference must be enabled");
+                return null;
         }
     }
 }

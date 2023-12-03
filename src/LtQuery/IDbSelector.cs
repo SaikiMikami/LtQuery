@@ -50,6 +50,19 @@ public interface IDbSelector
     /// <returns></returns>
     TEntity First<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
 
+    /// <summary>
+    /// Executes a COUNT query, returning count as int.
+    /// </summary>
+    /// <typeparam name="TEntity"></typeparam>
+    /// <param name="query"></param>
+    /// <returns></returns>
     int Count<TEntity>(Query<TEntity> query) where TEntity : class;
+
+    /// <summary>
+    /// Executes a COUNT query, returning count as int.
+    /// </summary>
+    /// <typeparam name="TEntity"></typeparam>
+    /// <param name="query"></param>
+    /// <returns></returns>
     int Count<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class;
 }

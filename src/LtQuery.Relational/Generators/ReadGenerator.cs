@@ -4,7 +4,6 @@
 
 using LtQuery.Metadata;
 using LtQuery.Relational.Nodes;
-using LtQuery.Relational.Nodes.Values;
 using System.Data.Common;
 using System.Reflection.Emit;
 #if SaveDynamicAssmembly
@@ -25,7 +24,7 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
     const string _methodName = "Read";
     static int _no = 0;
 
-    public Func<DbCommand, IReadOnlyList<TEntity>> CreateReadSelectFunc(Query<TEntity> query)
+    public ExecuteSelect<TEntity> CreateReadSelectFunc(Query<TEntity> query)
     {
 #if SaveDynamicAssmembly
         var assmName = new AssemblyName(_assemblyName);
@@ -85,11 +84,11 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
 
         return (Func<DbCommand, IReadOnlyList<TEntity>>)Delegate.CreateDelegate(typeof(Func<DbCommand, IReadOnlyList<TEntity>>), type2.GetMethod(_methodName)!);
 #else
-        return method.CreateDelegate<Func<DbCommand, IReadOnlyList<TEntity>>>();
+        return method.CreateDelegate<ExecuteSelect<TEntity>>();
 #endif
     }
 
-    public Func<DbCommand, TParameter, IReadOnlyList<TEntity>> CreateReadSelectFunc<TParameter>(Query<TEntity> query)
+    public ExecuteSelect<TEntity, TParameter> CreateReadSelectFunc<TParameter>(Query<TEntity> query)
     {
 #if SaveDynamicAssmembly
         var assmName = new AssemblyName(_assemblyName);
@@ -117,7 +116,7 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
         il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Array.Empty<Type>())!);
         il.EmitStloc(entities);
 
-        emitParameters<TParameter>(il, root.AllParameters);
+        emitParameters<TParameter>(il);
 
         // using(var reader = command.ExecuteReader())
         il.Emit(OpCodes.Ldarg_0);
@@ -150,8 +149,102 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
 
         return (Func<DbCommand, TParameter, IReadOnlyList<TEntity>>)Delegate.CreateDelegate(typeof(Func<DbCommand, TParameter, IReadOnlyList<TEntity>>), type2.GetMethod(_methodName)!);
 #else
-        return method.CreateDelegate<Func<DbCommand, TParameter, IReadOnlyList<TEntity>>>();
+        return method.CreateDelegate<ExecuteSelect<TEntity, TParameter>>();
 #endif
+    }
+
+    public ExecuteCount CreateReadCountFunc()
+    {
+        var method = new DynamicMethod($"{_methodName}_{_no++}", typeof(int), new Type[] { typeof(DbCommand) }, GetType().Module, true);
+
+        var il = method.GetILGenerator();
+
+        // loc_0
+        var count = il.DeclareLocal(typeof(int));
+        // loc_1
+        var reader = il.DeclareLocal(typeof(DbDataReader));
+
+        // using(var reader = command.ExecuteReader())
+        il.Emit(OpCodes.Ldarg_0);
+        il.EmitCall(DbCommand_ExecuteReader);
+        il.EmitStloc(reader);
+        // try
+        il.BeginExceptionBlock();
+        {
+            // reader.Read()
+            il.EmitLdloc(reader);
+            il.EmitCall(DbDataReader_Read);
+            il.Emit(OpCodes.Pop);
+
+            il.EmitLdloc(reader);
+            il.EmitLdc_I4(0);
+            il.EmitCall(DbDataReader_GetInt32);
+            il.EmitStloc(count);
+        }
+        // finally
+        {
+            il.BeginFinallyBlock();
+            var finallyEnd = il.DefineLabel();
+            il.EmitLdloc(reader);
+            il.Emit(OpCodes.Brfalse_S, finallyEnd);
+            il.EmitLdloc(reader);
+            il.EmitCall(IDisposable_Dispose);
+            il.MarkLabel(finallyEnd);
+            il.EndExceptionBlock();
+        }
+
+        il.EmitLdloc(count);
+        il.Emit(OpCodes.Ret);
+
+        return method.CreateDelegate<ExecuteCount>();
+    }
+
+    public ExecuteCount<TParameter> CreateReadCountFunc<TParameter>()
+    {
+        var method = new DynamicMethod($"{_methodName}_{_no++}", typeof(int), new Type[] { typeof(DbCommand), typeof(TParameter) }, GetType().Module, true);
+
+        var il = method.GetILGenerator();
+
+        // loc_0
+        var count = il.DeclareLocal(typeof(int));
+        // loc_1
+        var reader = il.DeclareLocal(typeof(DbDataReader));
+
+        emitParameters<TParameter>(il);
+
+        // using(var reader = command.ExecuteReader())
+        il.Emit(OpCodes.Ldarg_0);
+        il.EmitCall(DbCommand_ExecuteReader);
+        il.EmitStloc(reader);
+        // try
+        il.BeginExceptionBlock();
+        {
+            // reader.Read()
+            il.EmitLdloc(reader);
+            il.EmitCall(DbDataReader_Read);
+            il.Emit(OpCodes.Pop);
+
+            il.EmitLdloc(reader);
+            il.EmitLdc_I4(0);
+            il.EmitCall(DbDataReader_GetInt32);
+            il.EmitStloc(count);
+        }
+        // finally
+        {
+            il.BeginFinallyBlock();
+            var finallyEnd = il.DefineLabel();
+            il.EmitLdloc(reader);
+            il.Emit(OpCodes.Brfalse_S, finallyEnd);
+            il.EmitLdloc(reader);
+            il.EmitCall(IDisposable_Dispose);
+            il.MarkLabel(finallyEnd);
+            il.EndExceptionBlock();
+        }
+
+        il.EmitLdloc(count);
+        il.Emit(OpCodes.Ret);
+
+        return method.CreateDelegate<ExecuteCount<TParameter>>();
     }
 
 
@@ -290,30 +383,35 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
 #endif
     }
 
-    void emitParameters<TParameter>(ILGenerator il, IReadOnlyList<ParameterValueData> parameters)
+    void emitParameters<TParameter>(ILGenerator il)
     {
-        for (var i = 0; i < parameters.Count; i++)
+        var properties = typeof(TParameter).GetProperties();
+
+        for (var i = 0; i < properties.Length; i++)
         {
             // command.Parameter[XXX].Value = parameters.XXX
-            var parameter = parameters[i];
+            var property = properties[i];
             il.Emit(OpCodes.Ldarg_0);
             il.EmitCall(DbCommand_get_Parameters);
             il.EmitLdc_I4(i);
             il.EmitCall(DbParameterCollection_get_Item);
             il.Emit(OpCodes.Ldarg_1);
-            var method = typeof(TParameter).GetProperty(parameter.Name)?.GetGetMethod() ?? throw new InvalidOperationException($"Argument [{parameter.Name}] is not included in the query");
+            var method = typeof(TParameter).GetProperty(property.Name)?.GetGetMethod() ?? throw new InvalidOperationException($"Argument [{property.Name}] is not included in the query");
             il.EmitCall(method);
-            var parameterType = parameters[i].Type;
+            var parameterType = properties[i].PropertyType;
             if (parameterType.IsValueType)
                 il.Emit(OpCodes.Box, parameterType);
 
             // ?? DbNull.Value
-            var label = il.DefineLabel();
-            il.Emit(OpCodes.Dup);
-            il.Emit(OpCodes.Brtrue_S, label);
-            il.Emit(OpCodes.Pop);
-            il.Emit(OpCodes.Ldsfld, DBNullType_Value);
-            il.MarkLabel(label);
+            if (property.IsNullableReference() != false)
+            {
+                var label = il.DefineLabel();
+                il.Emit(OpCodes.Dup);
+                il.Emit(OpCodes.Brtrue_S, label);
+                il.Emit(OpCodes.Pop);
+                il.Emit(OpCodes.Ldsfld, DBNullType_Value);
+                il.MarkLabel(label);
+            }
 
             il.EmitCall(DbParameter_set_Value);
         }
@@ -380,7 +478,7 @@ class ReadGenerator<TEntity> : AbstractGenerator where TEntity : class
                     il.Emit(OpCodes.Box, parameterType);
 
                 // ?? DbNull.Value
-                if (property.Info.IsNullableReference())
+                if (property.Info.IsNullableReference() != false)
                 {
                     var label = il.DefineLabel();
                     il.Emit(OpCodes.Dup);

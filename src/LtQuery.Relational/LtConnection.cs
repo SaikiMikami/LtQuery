@@ -136,8 +136,19 @@ class LtConnection : ILtConnection
         var command = commandCache.Select;
         if (command == null)
         {
-            var parameters = createParameters(query);
-            command = createCommand<TEntity>(sql, parameters);
+            command = createCommand<TEntity>(sql);
+            commandCache.Select = command;
+        }
+        return command;
+    }
+
+    public DbCommand GetSelectCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
+    {
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Select;
+        if (command == null)
+        {
+            command = createCommand<TEntity, TParameter>(sql);
             commandCache.Select = command;
         }
         return command;
@@ -149,8 +160,19 @@ class LtConnection : ILtConnection
         var command = commandCache.Select;
         if (command == null)
         {
-            var parameters = createParameters(query);
-            command = createCommand<TEntity>(sql, parameters);
+            command = createCommand<TEntity>(sql);
+            commandCache.Select = command;
+        }
+        return command;
+    }
+
+    public DbCommand GetSingleCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
+    {
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Select;
+        if (command == null)
+        {
+            command = createCommand<TEntity, TParameter>(sql);
             commandCache.Select = command;
         }
         return command;
@@ -162,8 +184,19 @@ class LtConnection : ILtConnection
         var command = commandCache.First;
         if (command == null)
         {
-            var parameters = createParameters(query);
-            command = createCommand<TEntity>(sql, parameters);
+            command = createCommand<TEntity>(sql);
+            commandCache.First = command;
+        }
+        return command;
+    }
+
+    public DbCommand GetFirstCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
+    {
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.First;
+        if (command == null)
+        {
+            command = createCommand<TEntity, TParameter>(sql);
             commandCache.First = command;
         }
         return command;
@@ -175,8 +208,19 @@ class LtConnection : ILtConnection
         var command = commandCache.Count;
         if (command == null)
         {
-            var parameters = createParameters(query);
-            command = createCommand<TEntity>(sql, parameters);
+            command = createCommand<TEntity>(sql);
+            commandCache.Count = command;
+        }
+        return command;
+    }
+
+    public DbCommand GetCountCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
+    {
+        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
+        var command = commandCache.Count;
+        if (command == null)
+        {
+            command = createCommand<TEntity, TParameter>(sql);
             commandCache.Count = command;
         }
         return command;
@@ -197,22 +241,30 @@ class LtConnection : ILtConnection
         return createUpdateCommand<TEntity>(sql, DbMethod.Remove, count);
     }
 
-    DbCommand createCommand<TEntity>(string sql, IReadOnlyList<ParameterValue> parameters) where TEntity : class
+    DbCommand createCommand<TEntity>(string sql) where TEntity : class
     {
         if (Connection.State == ConnectionState.Closed)
             Connection.Open();
 
         var command = Connection.CreateCommand();
         command.CommandText = sql;
-        if (parameters != null)
+        return command;
+    }
+
+    DbCommand createCommand<TEntity, TParameter>(string sql) where TEntity : class
+    {
+        if (Connection.State == ConnectionState.Closed)
+            Connection.Open();
+
+        var command = Connection.CreateCommand();
+        command.CommandText = sql;
+        var parameters = typeof(TParameter).GetProperties();
+        foreach (var parameter in parameters)
         {
-            foreach (var parameter in parameters)
-            {
-                var p = command.CreateParameter();
-                p.ParameterName = $"@{parameter.Name}";
-                p.DbType = getDbType(parameter.Type);
-                command.Parameters.Add(p);
-            }
+            var p = command.CreateParameter();
+            p.ParameterName = $"@{parameter.Name}";
+            p.DbType = getDbType(parameter.PropertyType);
+            command.Parameters.Add(p);
         }
         return command;
     }
@@ -248,18 +300,6 @@ class LtConnection : ILtConnection
             }
         }
         return command;
-    }
-
-    IReadOnlyList<ParameterValue> createParameters<TEntity>(Query<TEntity> query) where TEntity : class
-    {
-        var parameters = new List<ParameterValue>();
-        if (query.Condition != null)
-            buildParameterValues(parameters, query.Condition);
-        if (query.SkipCount != null)
-            buildParameterValues(parameters, query.SkipCount);
-        if (query.TakeCount != null)
-            buildParameterValues(parameters, query.TakeCount);
-        return parameters;
     }
 
     static DbType getDbType(Type type)

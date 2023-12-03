@@ -333,5 +333,23 @@ namespace LtQuery.SqlServer.Tests
 
             Assert.Equal("SELECT DISTINCT t0.[Id], t0.[BlogId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email], t1.[AccountId] FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName ORDER BY t0.[Id] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY; SELECT t1.[Id], t2.[Id], t2.[Title], t2.[CategoryId], t2.[UserId], t2.[DateTime], t2.[Content], t3.[Id], t3.[Name], t3.[Email], t3.[AccountId] FROM (SELECT DISTINCT t1.[Id], t0.[Id] AS _sort1 FROM [Post] AS t0 LEFT JOIN [User] AS t1 ON t0.[UserId] = t1.[Id] INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id] WHERE t3.[Name] = @UserName ORDER BY t0.[Id] OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY) AS t1 INNER JOIN [Blog] AS t2 ON t1.[Id] = t2.[UserId] INNER JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]", actual);
         }
+
+        [Fact]
+        public void CreateCounttSql()
+        {
+            var query = Lt.Query<Blog>().ToImmutable();
+            var actual = _inst.CreateCountSql(query);
+
+            Assert.Equal("SELECT COUNT(t0.[Id]) FROM [Blog] AS t0", actual);
+        }
+
+        [Fact]
+        public void CreateCounttSql_WithParameter()
+        {
+            var query = Lt.Query<Blog>().Where(_ => _.Id > Lt.Arg<int>("Id")).ToImmutable();
+            var actual = _inst.CreateCountSql(query);
+
+            Assert.Equal("SELECT COUNT(t0.[Id]) FROM [Blog] AS t0 WHERE t0.[Id] > @Id", actual);
+        }
     }
 }
