@@ -1,6 +1,9 @@
 ﻿using LtQuery.Elements;
 using LtQuery.Metadata;
 using LtQuery.Relational.Generators;
+using LtQuery.Relational.Generators.Asyncs;
+using System.Data;
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 
 namespace LtQuery.Relational;
@@ -10,43 +13,42 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
     readonly EntityMetaService _metaService;
     readonly ISqlBuilder _sqlBuilder;
     readonly EntityMeta _meta;
-    readonly ReadGenerator<TEntity> _generator;
+    readonly ReadGenerator _generator;
+    readonly AsyncGenerator _asyncGenerator;
+    readonly InjectParameterGenerator _injectParameterGenerator;
+    readonly InjectIdsGenerator _injectIdsGenerator;
     public Repository(EntityMetaService metaService, ISqlBuilder sqlBuilder)
     {
         _metaService = metaService;
         _sqlBuilder = sqlBuilder;
         _meta = _metaService.GetEntityMeta<TEntity>();
-        _generator = new ReadGenerator<TEntity>(_metaService);
+        _generator = new(_metaService);
+        _asyncGenerator = new(_metaService);
+        _injectParameterGenerator = new(_metaService);
+        _injectIdsGenerator = new(_metaService);
     }
 
-    class Cache2<TDelegate>
+
+    class Cache2
     {
-        public TDelegate Read { get; set; }
         public string Sql { get; }
-        public Cache2(TDelegate read, string sql)
+        public ExecuteSelect<TEntity>? Read { get; set; }
+        public ExecuteSelectAsync<TEntity>? ReadAsync { get; set; }
+        public Cache2(string sql)
         {
-            Read = read;
             Sql = sql;
         }
     }
 
-    interface IReaderCache { }
-    class Cache : IReaderCache
+    class Cache
     {
-        public Cache2<ExecuteSelect<TEntity>>? Select { get; set; }
-        public Cache2<ExecuteSelect<TEntity>>? First { get; set; }
-        public Cache2<ExecuteSelect<TEntity>>? Single { get; set; }
-        public Cache2<ExecuteCount>? Count { get; set; }
-    }
-    class Cache<TParameter> : IReaderCache
-    {
-        public Cache2<ExecuteSelect<TEntity, TParameter>>? Select { get; set; }
-        public Cache2<ExecuteSelect<TEntity, TParameter>>? First { get; set; }
-        public Cache2<ExecuteSelect<TEntity, TParameter>>? Single { get; set; }
-        public Cache2<ExecuteCount<TParameter>>? Count { get; set; }
+        public Cache2? Select { get; set; }
+        public Cache2? First { get; set; }
+        public Cache2? Single { get; set; }
+        public string? CountSql { get; set; }
     }
 
-    readonly ConditionalWeakTable<Query<TEntity>, IReaderCache> _caches = new();
+    readonly ConditionalWeakTable<Query<TEntity>, Cache> _caches = new();
     readonly ReaderWriterLockSlim _cachesLocker = new();
 
     Cache getReaderCache(Query<TEntity> query)
@@ -67,32 +69,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
                     _cachesLocker.ExitWriteLock();
                 }
             }
-            return (Cache)cache;
-        }
-        finally
-        {
-            _cachesLocker.ExitUpgradeableReadLock();
-        }
-    }
-    Cache<TParameter> getReaderCache<TParameter>(Query<TEntity> query)
-    {
-        _cachesLocker.EnterUpgradeableReadLock();
-        try
-        {
-            if (!_caches.TryGetValue(query, out var cache))
-            {
-                _cachesLocker.EnterWriteLock();
-                try
-                {
-                    cache = new Cache<TParameter>();
-                    _caches.Add(query, cache);
-                }
-                finally
-                {
-                    _cachesLocker.ExitWriteLock();
-                }
-            }
-            return (Cache<TParameter>)cache;
+            return cache;
         }
         finally
         {
@@ -100,200 +77,562 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
     }
 
-    class UpdateCache2
-    {
-        public ExecuteUpdate<TEntity> Execute { get; set; }
-        public UpdateCache2(ExecuteUpdate<TEntity> execute)
-        {
-            Execute = execute;
-        }
-    }
     static class UpdateCache
     {
-        public static UpdateCache2? Add { get; set; }
-        public static UpdateCache2? Update { get; set; }
-        public static UpdateCache2? Remove { get; set; }
+        public static InjectParameterForUpdate<TEntity>? Add { get; set; }
+        public static InjectParameterForUpdate<TEntity>? Update { get; set; }
+        public static InjectParameterForUpdate<TEntity>? Remove { get; set; }
+        public static InjectIds<TEntity>? InjectIds { get; set; }
     }
 
 
     public IReadOnlyList<TEntity> Select(LtConnection connection, Query<TEntity> query)
     {
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
         var cache = getReaderCache(query);
 
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = _generator.CreateReadSelectFunc(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
-            cache2 = new(read, sql);
+            cache2 = new(sql);
             cache.Select = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(query);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetSelectCommand(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            return read(command);
+        }
+    }
 
-        return cache2.Read(command);
+    public async ValueTask<IReadOnlyList<TEntity>> SelectAsync(LtConnection connection, Query<TEntity> query, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var cache2 = cache.Select;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(query);
+            cache2 = new(sql);
+            cache.Select = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(query);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            return await readAsync(command, cancellationToken);
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public IReadOnlyList<TEntity> Select<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
     {
-        var cache = getReaderCache<TParameter>(query);
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
+        var cache = getReaderCache(query);
 
         var cache2 = cache.Select;
         if (cache2 == null)
         {
-            var read = _generator.CreateReadSelectFunc<TParameter>(query);
             var sql = _sqlBuilder.CreateSelectSql(query);
-            cache2 = new(read, sql);
-
+            cache2 = new(sql);
             cache.Select = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(query);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetSelectCommand<TEntity, TParameter>(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
 
-        return cache2.Read(command, values);
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            injectParameter(command, values);
+            return read(command);
+        }
+    }
+
+    public async ValueTask<IReadOnlyList<TEntity>> SelectAsync<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var cache2 = cache.Select;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(query);
+            cache2 = new(sql);
+            cache.Select = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(query);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            injectParameter(command, values);
+            return await readAsync(command, cancellationToken);
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public TEntity Single(LtConnection connection, Query<TEntity> query)
     {
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
         var cache = getReaderCache(query);
+
+        var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
 
         var cache2 = cache.Single;
         if (cache2 == null)
         {
-            var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = _generator.CreateReadSelectFunc(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
-            cache2 = new(read, sql);
-
+            cache2 = new(sql);
             cache.Single = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(signleQuery);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetSingleCommand(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            return read(command).Single();
+        }
+    }
 
-        return cache2.Read(command).Single();
+    public async ValueTask<TEntity> SingleAsync(LtConnection connection, Query<TEntity> query, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
+
+        var cache2 = cache.Single;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(signleQuery);
+            cache2 = new(sql);
+            cache.Single = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(signleQuery);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            return (await readAsync(command, cancellationToken)).Single();
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public TEntity Single<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
     {
-        var cache = getReaderCache<TParameter>(query);
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
+        var cache = getReaderCache(query);
+
+        var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
 
         var cache2 = cache.Single;
         if (cache2 == null)
         {
-            var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
-            var read = _generator.CreateReadSelectFunc<TParameter>(signleQuery);
             var sql = _sqlBuilder.CreateSelectSql(signleQuery);
-            cache2 = new(read, sql);
-
+            cache2 = new(sql);
             cache.Single = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(signleQuery);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetSingleCommand<TEntity, TParameter>(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
 
-        return cache2.Read(command, values).Single();
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            injectParameter(command, values);
+            return read(command).Single();
+        }
+    }
+
+    public async ValueTask<TEntity> SingleAsync<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var signleQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("2"));
+
+        var cache2 = cache.Single;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(signleQuery);
+            cache2 = new(sql);
+            cache.Single = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(signleQuery);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            injectParameter(command, values);
+            return (await readAsync(command, cancellationToken)).Single();
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public TEntity First(LtConnection connection, Query<TEntity> query)
     {
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
         var cache = getReaderCache(query);
+
+        var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
 
         var cache2 = cache.First;
         if (cache2 == null)
         {
-            var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = _generator.CreateReadSelectFunc(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
-            cache2 = new(read, sql);
-
+            cache2 = new(sql);
             cache.First = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(firstQuery);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetFirstCommand(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            return read(command).First();
+        }
+    }
 
-        return cache2.Read(command).First();
+    public async ValueTask<TEntity> FirstAsync(LtConnection connection, Query<TEntity> query, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
+
+        var cache2 = cache.First;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(firstQuery);
+            cache2 = new(sql);
+            cache.First = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(firstQuery);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            return (await readAsync(command, cancellationToken)).First();
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public TEntity First<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
     {
-        var cache = getReaderCache<TParameter>(query);
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
+        var cache = getReaderCache(query);
+
+        var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
 
         var cache2 = cache.First;
         if (cache2 == null)
         {
-            var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
-            var read = _generator.CreateReadSelectFunc<TParameter>(firstQuery);
             var sql = _sqlBuilder.CreateSelectSql(firstQuery);
-            cache2 = new(read, sql);
-
+            cache2 = new(sql);
             cache.First = cache2;
         }
+        var read = cache2.Read;
+        if (read == null)
+        {
+            read = _generator.CreateReadSelectFunc(firstQuery);
+            cache2.Read = read;
+        }
 
-        var command = connection.GetFirstCommand<TEntity, TParameter>(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
 
-        return cache2.Read(command, values).First();
+        using (var command = createCommand(connection, cache2.Sql))
+        {
+            injectParameter(command, values);
+            return read(command).First();
+        }
+    }
+
+    public async ValueTask<TEntity> FirstAsync<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var firstQuery = new Query<TEntity>(query.Condition, query.Includes, query.OrderBys, query.SkipCount, new ConstantValue("1"));
+
+        var cache2 = cache.First;
+        if (cache2 == null)
+        {
+            var sql = _sqlBuilder.CreateSelectSql(firstQuery);
+            cache2 = new(sql);
+            cache.First = cache2;
+        }
+        var readAsync = cache2.ReadAsync;
+        if (readAsync == null)
+        {
+            readAsync = _asyncGenerator.CreateReadSelectAsyncFunc(firstQuery);
+            cache2.ReadAsync = readAsync;
+        }
+
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
+
+        var command = createCommand(connection, cache2.Sql);
+        try
+        {
+            injectParameter(command, values);
+            return (await readAsync(command, cancellationToken)).First();
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public int Count(LtConnection connection, Query<TEntity> query)
     {
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
         var cache = getReaderCache(query);
 
-        var cache2 = cache.Count;
-        if (cache2 == null)
+        var sql = cache.CountSql;
+        if (sql == null)
         {
-            var read = _generator.CreateReadCountFunc();
-            var sql = _sqlBuilder.CreateCountSql(query);
-            cache2 = new(read, sql);
-            cache.Count = cache2;
+            sql = _sqlBuilder.CreateCountSql(query);
+            cache.CountSql = sql;
         }
 
-        var command = connection.GetCountCommand(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        using (var command = createCommand(connection, sql))
+        {
+            return executeReadInt(command);
+        }
+    }
 
-        return cache2.Read(command);
+    public async ValueTask<int> CountAsync(LtConnection connection, Query<TEntity> query, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var sql = cache.CountSql;
+        if (sql == null)
+        {
+            sql = _sqlBuilder.CreateCountSql(query);
+            cache.CountSql = sql;
+        }
+
+        var command = createCommand(connection, sql);
+        try
+        {
+            return await executeReadIntAsync(command, cancellationToken);
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     public int Count<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values)
     {
-        var cache = getReaderCache<TParameter>(query);
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
 
-        var cache2 = cache.Count;
-        if (cache2 == null)
+        var cache = getReaderCache(query);
+
+        var sql = cache.CountSql;
+        if (sql == null)
         {
-            var read = _generator.CreateReadCountFunc<TParameter>();
-            var sql = _sqlBuilder.CreateCountSql(query);
-            cache2 = new(read, sql);
-            cache.Count = cache2;
+            sql = _sqlBuilder.CreateCountSql(query);
+            cache.CountSql = sql;
         }
 
-        var command = connection.GetCountCommand<TEntity, TParameter>(query, cache2.Sql);
-        command.Transaction = connection.CurrentTransaction?.Inner;
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
 
-        return cache2.Read(command, values);
+        using (var command = createCommand(connection, sql))
+        {
+            injectParameter(command, values);
+            return executeReadInt(command);
+        }
+    }
+
+    public async ValueTask<int> CountAsync<TParameter>(LtConnection connection, Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var cache = getReaderCache(query);
+
+        var sql = cache.CountSql;
+        if (sql == null)
+        {
+            sql = _sqlBuilder.CreateCountSql(query);
+            cache.CountSql = sql;
+        }
+
+        var injectParameter = InjectParameterCache<TParameter>.Value;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterFunc<TParameter>();
+            InjectParameterCache<TParameter>.Value = injectParameter;
+        }
+
+        var command = createCommand(connection, sql);
+        try
+        {
+            injectParameter(command, values);
+            return await executeReadIntAsync(command, cancellationToken);
+        }
+        finally
+        {
+            await command.DisposeAsync();
+        }
     }
 
     const int _maxParameterCount = 2099;
 
     public void Add(LtConnection connection, Span<TEntity> entities)
     {
-        var count = entities.Length;
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
 
-        var cache = UpdateCache.Add;
-        if (cache == null)
+        var injectIds = UpdateCache.InjectIds;
+        if (injectIds == null)
         {
-            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Add);
-            cache = new(execute);
-
-            UpdateCache.Add = cache;
+            injectIds = _injectIdsGenerator.CreateInjectParametersFunc<TEntity>();
+            UpdateCache.InjectIds = injectIds;
+        }
+        var injectParameter = UpdateCache.Add;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Add);
+            UpdateCache.Add = injectParameter;
         }
 
         var maxLength = _maxParameterCount / _meta.Properties.Count;
         var i = 0;
+        var count = entities.Length;
         while (i < count)
         {
             var length = count - i;
@@ -302,29 +641,70 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             var entities2 = entities.Slice(i, length);
 
             var sql = _sqlBuilder.CreateAddSql<TEntity>(length);
-            var command = connection.GetAddCommand<TEntity>(sql, length);
-            command.Transaction = connection.CurrentTransaction?.Inner;
+            using (var command = createCommand(connection, sql))
+            {
+                injectParameter(command, entities2);
+                var ids = executeReadInts(command, length);
+                injectIds(entities2, ids);
+            }
+            i += length;
+        }
+    }
 
-            cache.Execute(command, entities2);
+    public async ValueTask AddAsync(LtConnection connection, TEntity[] entities, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
+
+        var injectIds = UpdateCache.InjectIds;
+        if (injectIds == null)
+        {
+            injectIds = _injectIdsGenerator.CreateInjectParametersFunc<TEntity>();
+            UpdateCache.InjectIds = injectIds;
+        }
+        var injectParameter = UpdateCache.Add;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Add);
+            UpdateCache.Add = injectParameter;
+        }
+
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        var count = entities.Length;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities[i..(i + length)];
+
+            var sql = _sqlBuilder.CreateAddSql<TEntity>(length);
+            using (var command = createCommand(connection, sql))
+            {
+                injectParameter(command, entities2);
+                var ids = await executeReadIntsAsync(command, length, cancellationToken);
+                injectIds(entities2, ids);
+            }
             i += length;
         }
     }
 
     public void Update(LtConnection connection, Span<TEntity> entities)
     {
-        var count = entities.Length;
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
 
-        var cache = UpdateCache.Update;
-        if (cache == null)
+        var injectParameter = UpdateCache.Update;
+        if (injectParameter == null)
         {
-            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Update);
-            cache = new(execute);
-
-            UpdateCache.Update = cache;
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Update);
+            UpdateCache.Update = injectParameter;
         }
 
         var maxLength = _maxParameterCount / _meta.Properties.Count;
         var i = 0;
+        var count = entities.Length;
         while (i < count)
         {
             var length = count - i;
@@ -333,29 +713,67 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             var entities2 = entities.Slice(i, length);
 
             var sql = _sqlBuilder.CreateUpdatedSql<TEntity>(length);
-            var command = connection.GetUpdateCommand<TEntity>(sql, length);
-            command.Transaction = connection.CurrentTransaction?.Inner;
+            using (var command = createCommand(connection, sql))
+            {
+                injectParameter(command, entities2);
+                command.ExecuteNonQuery();
+            }
+            i += length;
+        }
+    }
 
-            cache.Execute(command, entities2);
+    public async ValueTask UpdateAsync(LtConnection connection, TEntity[] entities, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var injectParameter = UpdateCache.Update;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Update);
+            UpdateCache.Update = injectParameter;
+        }
+
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        var count = entities.Length;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities[i..(i + length)];
+
+            var sql = _sqlBuilder.CreateUpdatedSql<TEntity>(length);
+            var command = createCommand(connection, sql);
+            try
+            {
+                injectParameter(command, entities2);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            finally
+            {
+                await command.DisposeAsync();
+            }
             i += length;
         }
     }
 
     public void Remove(LtConnection connection, Span<TEntity> entities)
     {
-        var count = entities.Length;
+        if (connection.Inner.State == ConnectionState.Closed)
+            connection.Inner.Open();
 
-        var cache = UpdateCache.Remove;
-        if (cache == null)
+        var injectParameter = UpdateCache.Remove;
+        if (injectParameter == null)
         {
-            var execute = _generator.CreateExecuteUpdateFunc(DbMethod.Remove);
-            cache = new(execute);
-
-            UpdateCache.Remove = cache;
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Remove);
+            UpdateCache.Remove = injectParameter;
         }
 
         var maxLength = _maxParameterCount / _meta.Properties.Count;
         var i = 0;
+        var count = entities.Length;
         while (i < count)
         {
             var length = count - i;
@@ -364,11 +782,116 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
             var entities2 = entities.Slice(i, length);
 
             var sql = _sqlBuilder.CreateRemoveSql<TEntity>(length);
-            var command = connection.GetRemoveCommand<TEntity>(sql, length);
-            command.Transaction = connection.CurrentTransaction?.Inner;
-
-            cache.Execute(command, entities2);
+            using (var command = createCommand(connection, sql))
+            {
+                injectParameter(command, entities2);
+                command.ExecuteNonQuery();
+            }
             i += length;
         }
+    }
+
+    public async ValueTask RemoveAsync(LtConnection connection, TEntity[] entities, CancellationToken cancellationToken = default)
+    {
+        if (connection.Inner.State == ConnectionState.Closed)
+            await connection.Inner.OpenAsync(cancellationToken);
+
+        var injectParameter = UpdateCache.Remove;
+        if (injectParameter == null)
+        {
+            injectParameter = _injectParameterGenerator.CreateInjectParameterForUpdateFunc<TEntity>(DbMethod.Remove);
+            UpdateCache.Remove = injectParameter;
+        }
+
+        var count = entities.Length;
+
+        var maxLength = _maxParameterCount / _meta.Properties.Count;
+        var i = 0;
+        while (i < count)
+        {
+            var length = count - i;
+            if (length > maxLength)
+                length = maxLength;
+            var entities2 = entities[i..(i + length)];
+
+            var sql = _sqlBuilder.CreateRemoveSql<TEntity>(length);
+            var command = createCommand(connection, sql);
+            try
+            {
+                injectParameter(command, entities2);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            finally
+            {
+                await command.DisposeAsync();
+            }
+            i += length;
+        }
+    }
+
+
+    static int executeReadInt(DbCommand command)
+    {
+        using (var reader = command.ExecuteReader())
+        {
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+    }
+    static async ValueTask<int> executeReadIntAsync(DbCommand command, CancellationToken cancellationToken)
+    {
+        var reader = await command.ExecuteReaderAsync(cancellationToken);
+        try
+        {
+            await reader.ReadAsync();
+            return reader.GetInt32(0);
+        }
+        finally
+        {
+            await reader.DisposeAsync();
+        }
+    }
+
+    static int[] executeReadInts(DbCommand command, int count)
+    {
+        using (var reader = command.ExecuteReader())
+        {
+            int index = 0;
+            var array = new int[count];
+            var span = array.AsSpan();
+            while (reader.Read())
+            {
+                span[index++] = reader.GetInt32(0);
+            }
+
+            return array;
+        }
+    }
+    static async ValueTask<int[]> executeReadIntsAsync(DbCommand command, int count, CancellationToken cancellationToken)
+    {
+        var reader = await command.ExecuteReaderAsync(cancellationToken);
+        try
+        {
+            int index = 0;
+            var array = new int[count];
+            while (await reader.ReadAsync())
+            {
+                array[index++] = reader.GetInt32(0);
+            }
+
+            return array;
+        }
+        finally
+        {
+            await reader.DisposeAsync();
+        }
+    }
+
+    static DbCommand createCommand(LtConnection connection, string sql)
+    {
+        var command = connection.Inner.CreateCommand();
+        command.CommandText = sql;
+        command.Transaction = connection.CurrentTransaction?.Inner;
+        return command;
     }
 }

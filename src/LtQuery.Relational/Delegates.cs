@@ -2,10 +2,10 @@
 
 namespace LtQuery.Relational;
 
-public delegate IReadOnlyList<TEntity> ExecuteSelect<TEntity>(DbCommand command) where TEntity : class;
-public delegate IReadOnlyList<TEntity> ExecuteSelect<TEntity, TParameter>(DbCommand command, TParameter parameters) where TEntity : class;
-public delegate int ExecuteCount(DbCommand command);
-public delegate int ExecuteCount<TParameter>(DbCommand command, TParameter parameters);
-public delegate TEntity ExecuteSingle<TEntity>(DbCommand command) where TEntity : class;
-public delegate TEntity ExecuteSingle<TEntity, TParameter>(DbCommand command, TParameter parameters) where TEntity : class;
-public delegate void ExecuteUpdate<TEntity>(DbCommand command, Span<TEntity> entities) where TEntity : class;
+delegate void InjectParameter<TParameter>(DbCommand command, TParameter parameter);
+delegate void InjectParameterForUpdate<TEntity>(DbCommand command, Span<TEntity> entities);
+
+delegate IReadOnlyList<TEntity> ExecuteSelect<TEntity>(DbCommand command) where TEntity : class;
+delegate ValueTask<IReadOnlyList<TEntity>> ExecuteSelectAsync<TEntity>(DbCommand command, CancellationToken cancellationToken = default) where TEntity : class;
+
+delegate void InjectIds<TEntity>(Span<TEntity> entities, Span<int> ids);

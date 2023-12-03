@@ -11,4 +11,9 @@ public interface ILtUnitOfWork : IDbSelector, IDbUpdater, IDisposable
     /// commit
     /// </summary>
     void Commit(IsolationLevel? isolationLevel = default);
+
+    /// <summary>
+    /// commit
+    /// </summary>
+    ValueTask CommitAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default);
 }

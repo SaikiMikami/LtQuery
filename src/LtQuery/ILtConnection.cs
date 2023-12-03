@@ -1,11 +1,12 @@
 ﻿using System.Data;
+using System.Data.Common;
 
 namespace LtQuery;
 
 /// <summary>
 /// LtQuery Connection
 /// </summary>
-public interface ILtConnection : IDbSelector, IDbUpdater, IDisposable
+public interface ILtConnection : IDbSelector, IDbUpdater, IDbUpdaterAsync, IDisposable
 {
     /// <summary>
     /// Create UnitOfWork
@@ -18,5 +19,12 @@ public interface ILtConnection : IDbSelector, IDbUpdater, IDisposable
     /// </summary>
     /// <param name="isolationLevel"></param>
     /// <returns></returns>
-    IDbTransaction BeginTransaction(IsolationLevel? isolationLevel = default);
+    DbTransaction BeginTransaction(IsolationLevel? isolationLevel = default);
+
+    /// <summary>
+    /// Begin Transaction
+    /// </summary>
+    /// <param name="isolationLevel"></param>
+    /// <returns></returns>
+    ValueTask<DbTransaction> BeginTransactionAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default);
 }

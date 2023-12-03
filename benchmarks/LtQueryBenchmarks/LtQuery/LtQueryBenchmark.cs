@@ -22,6 +22,11 @@ class LtQueryBenchmark : AbstractBenchmark
         _connection.Select(_singleQuery);
         _connection.Select(_selectSimpleQuery);
         _connection.Select(_includeChilrenQuery, new { Id = 20 });
+        var task = Task.Run(async () =>
+        {
+            await _connection.SelectAsync(_includeChilrenQuery, new { Id = 20 });
+        });
+        task.Wait();
         _connection.Add(new Tag("a"));
     }
     public void Cleanup()
@@ -70,6 +75,20 @@ class LtQueryBenchmark : AbstractBenchmark
     public int SelectIncludeChilren()
     {
         var entities = _connection.Select(_includeChilrenQuery, new { Id = 20 });
+
+        var accum = 0;
+        foreach (var entity in entities)
+        {
+            AddHashCode(ref accum, entity.Id);
+            foreach (var post in entity.Posts)
+                AddHashCode(ref accum, post.Id);
+        }
+        return accum;
+    }
+
+    public async Task<int> SelectIncludeChilrenAsync()
+    {
+        var entities = await _connection.SelectAsync(_includeChilrenQuery, new { Id = 20 });
 
         var accum = 0;
         foreach (var entity in entities)

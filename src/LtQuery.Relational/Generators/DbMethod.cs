@@ -2,6 +2,8 @@
 
 enum DbMethod
 {
+    Select,
+    Count,
     Add,
     Update,
     Remove,

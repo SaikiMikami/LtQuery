@@ -1,22 +1,22 @@
 ﻿using LtQuery.Metadata;
 using LtQuery.Relational.Nodes;
-using System.Data;
+using System.Reflection;
 using System.Reflection.Emit;
 
-namespace LtQuery.Relational.Generators;
+namespace LtQuery.Relational.Generators.Asyncs;
 
-class TableGenerator : AbstractGenerator
+class AsyncTableGenerator : AbstractGenerator
 {
-    public QueryGenerator QueryGenerator { get; }
+    public AsyncQueryGenerator QueryGenerator { get; }
     public TableNode2 Table { get; }
-    public TableGenerator? Parent { get; }
-    public IReadOnlyList<TableGenerator> Children { get; }
-    public TableGenerator(TableGenerator? parent, QueryGenerator queryGenerator, TableNode2 table)
+    public AsyncTableGenerator? Parent { get; }
+    public IReadOnlyList<AsyncTableGenerator> Children { get; }
+    public AsyncTableGenerator(AsyncTableGenerator? parent, AsyncQueryGenerator queryGenerator, TableNode2 table)
     {
         Parent = parent;
         QueryGenerator = queryGenerator;
         Table = table;
-        var children = new List<TableGenerator>();
+        var children = new List<AsyncTableGenerator>();
         foreach (var child in table.Children)
         {
             if ((child.TableType & TableType.Select) != 0)
@@ -28,14 +28,12 @@ class TableGenerator : AbstractGenerator
     bool isReuse;
     public LocalBuilder? Entity { get; private set; }
     public LocalBuilder? Id { get; private set; }
-    public LocalBuilder? Dictionary { get; private set; }
+    public FieldBuilder? Dictionary { get; private set; }
     public LocalBuilder? PretId { get; private set; }
-
 
     Type dictionaryType => typeof(Dictionary<,>).MakeGenericType(Table.Key.Type, Table.Type);
 
-    // 変数宣言
-    public void CreateLocalAndLabel(ILGenerator il)
+    public void EmitInit(TypeBuilder typeb, ILGenerator il, ref int dictionaryIndex)
     {
         Entity = il.DeclareLocal(Type);
         if (HasSubQuery() || (Navigation != null && Navigation.NavigationType == NavigationType.Multi))
@@ -52,34 +50,26 @@ class TableGenerator : AbstractGenerator
                 else
                 {
                     isReuse = false;
-                    Dictionary = il.DeclareLocal(dictionaryType);
+                    Dictionary = typeb.DefineField($"_dic{dictionaryIndex++}", dictionaryType, FieldAttributes.Private);
                 }
             }
             else
             {
                 isReuse = false;
-                Dictionary = il.DeclareLocal(dictionaryType);
+                Dictionary = typeb.DefineField($"_dic{dictionaryIndex++}", dictionaryType, FieldAttributes.Private);
             }
             PretId = il.DeclareLocal(Meta.Key.Type);
             Id = il.DeclareLocal(Meta.Key.Type);
         }
 
-        foreach (var child in Children)
-        {
-            child.CreateLocalAndLabel(il);
-        }
-    }
-
-    // readerループの外の初期化処理
-    public void EmitInit(ILGenerator il)
-    {
         if (Dictionary != null)
         {
             if (!isReuse)
             {
-                // var dictionary = new Dictionary<TKey, TEntity>();
+                // _dic = new Dictionary<TKey, TEntity>();
+                il.EmitLdarg(0);
                 il.Emit(OpCodes.Newobj, dictionaryType.GetConstructor(Type.EmptyTypes)!);
-                il.EmitStloc(Dictionary);
+                il.EmitStfld(Dictionary);
             }
         }
         if (Entity != null)
@@ -100,12 +90,11 @@ class TableGenerator : AbstractGenerator
 
         foreach (var child in Children)
         {
-            child.EmitInit(il);
+            child.EmitInit(typeb, il, ref dictionaryIndex);
         }
     }
 
-    // readerからデータを取得しentityを生成する
-    public void EmitCreate(ILGenerator il, LocalBuilder reader, ref int index)
+    public void EmitBody(ILGenerator il, LocalBuilder reader, LocalBuilder ret, ref int index)
     {
         // 重複が混ざっているSELECT
         if (Navigation != null && Navigation.NavigationType == NavigationType.Multi)
@@ -121,10 +110,10 @@ class TableGenerator : AbstractGenerator
 
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
-            il.Emit(OpCodes.Brtrue_S, ifEnd);
+            il.Emit(OpCodes.Brtrue, ifEnd);
             {
                 // 重複カット
                 // id = dic[(int)reader[0]];
@@ -138,7 +127,8 @@ class TableGenerator : AbstractGenerator
                 il.Emit(OpCodes.Beq_S, ifEnd2);
                 {
                     // if(!dic.TryGetValue(id, out entity))
-                    il.EmitLdloc(Dictionary);
+                    il.EmitLdarg(0);
+                    il.EmitLdfld(Dictionary);
                     il.EmitLdloc(Id);
                     il.Emit(OpCodes.Ldloca_S, Entity);
                     il.EmitCall(dictionaryType.GetMethod("TryGetValue")!);
@@ -160,7 +150,8 @@ class TableGenerator : AbstractGenerator
                         il.EmitStloc(Entity);
 
                         // dic.Add(id, entity)
-                        il.EmitLdloc(Dictionary);
+                        il.EmitLdarg(0);
+                        il.EmitLdfld(Dictionary);
                         il.EmitLdloc(Id);
                         il.EmitLdloc(Entity);
                         il.EmitCall(dictionaryType.GetMethod("Add")!);
@@ -184,7 +175,7 @@ class TableGenerator : AbstractGenerator
         {
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brtrue_S, ifEnd);
@@ -197,7 +188,8 @@ class TableGenerator : AbstractGenerator
                         throw new InvalidProgramException("Key == null");
                     if (Entity == null)
                         throw new InvalidProgramException("Entity == null");
-                    il.EmitLdloc(Dictionary);
+                    il.EmitLdarg(0);
+                    il.EmitLdfld(Dictionary);
                     il.EmitLdloc(Id);
                     il.EmitLdloc(Entity);
                     il.EmitCall(dictionaryType.GetMethod("Add")!);
@@ -239,7 +231,8 @@ class TableGenerator : AbstractGenerator
                 il.Emit(OpCodes.Beq_S, ifEnd);
                 {
                     // parentEntity = parentDictionary[parentId]
-                    il.EmitLdloc(Parent.Dictionary);
+                    il.EmitLdarg(0);
+                    il.EmitLdfld(Parent.Dictionary);
                     il.EmitLdloc(Parent.Id);
                     il.EmitCall(Parent.dictionaryType.GetProperty("Item", new Type[] { typeof(int) })!.GetGetMethod()!);
                     il.EmitStloc(Parent.Entity);
@@ -255,12 +248,13 @@ class TableGenerator : AbstractGenerator
 
             // entity = new Entity()
             emitCreate(il, reader, index);
+
             if (hasEntities)
             {
                 if (Entity == null)
                     throw new InvalidProgramException("Entity == null");
                 // entities.Add(entity)
-                il.EmitLdloc(0);
+                il.EmitLdloc(ret);
                 il.EmitLdloc(Entity);
                 il.EmitCall(typeof(List<>).MakeGenericType(Type).GetMethod("Add")!);
             }
@@ -270,7 +264,8 @@ class TableGenerator : AbstractGenerator
                     throw new InvalidProgramException("Key == null");
                 if (Entity == null)
                     throw new InvalidProgramException("Entity == null");
-                il.EmitLdloc(Dictionary);
+                il.EmitLdarg(0);
+                il.EmitLdfld(Dictionary);
                 il.EmitLdloc(Id);
                 il.EmitLdloc(Entity);
                 il.EmitCall(dictionaryType.GetMethod("Add")!);
@@ -290,7 +285,7 @@ class TableGenerator : AbstractGenerator
         foreach (var child in Children)
         {
             if ((child.Table.TableType & TableType.Select) != 0)
-                child.EmitCreate(il, reader, ref index);
+                child.EmitBody(il, reader, ret, ref index);
         }
     }
 
@@ -331,7 +326,7 @@ class TableGenerator : AbstractGenerator
             var elseStart = il.DefineLabel();
 
             // if(reader.IsDBNull(index))
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
@@ -344,7 +339,7 @@ class TableGenerator : AbstractGenerator
             // else
             {
                 il.MarkLabel(elseStart);
-                il.EmitLdloc(1);
+                il.EmitLdloc(reader);
                 il.EmitLdc_I4(index);
 
                 if (type2 == typeof(int))
@@ -376,7 +371,7 @@ class TableGenerator : AbstractGenerator
             var elseStart = il.DefineLabel();
 
             // if(reader.IsDBNull(index))
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
@@ -387,7 +382,7 @@ class TableGenerator : AbstractGenerator
             // else
             {
                 il.MarkLabel(elseStart);
-                il.EmitLdloc(1);
+                il.EmitLdloc(reader);
                 il.EmitLdc_I4(index);
 
                 if (type == typeof(string))
@@ -400,7 +395,7 @@ class TableGenerator : AbstractGenerator
         else
         {
             var type = property.Type;
-            il.EmitLdloc(1);
+            il.EmitLdloc(reader);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
                 il.EmitCall(DbDataReader_GetInt32);
@@ -449,7 +444,7 @@ class TableGenerator : AbstractGenerator
     }
 
 
-    public TableGenerator? Search(TableNode2 table)
+    public AsyncTableGenerator? Search(TableNode2 table)
     {
         if (Table == table)
             return this;
@@ -461,7 +456,7 @@ class TableGenerator : AbstractGenerator
         }
         return null;
     }
-    public TableGenerator? Search(Type type)
+    public AsyncTableGenerator? Search(Type type)
     {
         if (Table.Type == type)
             return this;

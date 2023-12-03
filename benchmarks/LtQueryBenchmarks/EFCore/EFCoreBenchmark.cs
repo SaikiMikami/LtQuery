@@ -81,6 +81,25 @@ class EFCoreBenchmark : AbstractBenchmark
         return accum;
     }
 
+    public async Task<int> SelectIncludeChilrenAsync()
+    {
+        Blog[] entities;
+        using (var context = new TestContext())
+        {
+            var id = 20;
+            entities = await context.Set<Blog>().Include(_ => _.Posts).Where(_ => _.Id < id).AsNoTracking().ToArrayAsync();
+        }
+
+        var accum = 0;
+        foreach (var entity in entities)
+        {
+            AddHashCode(ref accum, entity.Id);
+            foreach (var post in entity.Posts)
+                AddHashCode(ref accum, post.Id);
+        }
+        return accum;
+    }
+
     public int SelectComplex()
     {
         Blog[] entities;
