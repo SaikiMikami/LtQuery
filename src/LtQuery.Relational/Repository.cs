@@ -130,6 +130,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetSelectCommand(query, cache2.Sql);
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command);
     }
@@ -149,6 +150,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetSelectCommand<TEntity, TParameter>(query, cache2.Sql);
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command, values);
     }
@@ -169,6 +171,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetSingleCommand(query, cache2.Sql);
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command).Single();
     }
@@ -189,8 +192,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetSingleCommand<TEntity, TParameter>(query, cache2.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command, values).Single();
     }
@@ -211,8 +213,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetFirstCommand(query, cache2.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command).First();
     }
@@ -233,8 +234,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetFirstCommand<TEntity, TParameter>(query, cache2.Sql);
-        if (connection.CurrentTransaction != null)
-            command.Transaction = connection.CurrentTransaction.Inner;
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command, values).First();
     }
@@ -253,6 +253,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetCountCommand(query, cache2.Sql);
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command);
     }
@@ -271,6 +272,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         }
 
         var command = connection.GetCountCommand<TEntity, TParameter>(query, cache2.Sql);
+        command.Transaction = connection.CurrentTransaction?.Inner;
 
         return cache2.Read(command, values);
     }
@@ -301,8 +303,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
             var sql = _sqlBuilder.CreateAddSql<TEntity>(length);
             var command = connection.GetAddCommand<TEntity>(sql, length);
-            if (connection.CurrentTransaction != null)
-                command.Transaction = connection.CurrentTransaction.Inner;
+            command.Transaction = connection.CurrentTransaction?.Inner;
 
             cache.Execute(command, entities2);
             i += length;
@@ -333,8 +334,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
             var sql = _sqlBuilder.CreateUpdatedSql<TEntity>(length);
             var command = connection.GetUpdateCommand<TEntity>(sql, length);
-            if (connection.CurrentTransaction != null)
-                command.Transaction = connection.CurrentTransaction.Inner;
+            command.Transaction = connection.CurrentTransaction?.Inner;
 
             cache.Execute(command, entities2);
             i += length;
@@ -365,8 +365,7 @@ class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 
             var sql = _sqlBuilder.CreateRemoveSql<TEntity>(length);
             var command = connection.GetRemoveCommand<TEntity>(sql, length);
-            if (connection.CurrentTransaction != null)
-                command.Transaction = connection.CurrentTransaction.Inner;
+            command.Transaction = connection.CurrentTransaction?.Inner;
 
             cache.Execute(command, entities2);
             i += length;
