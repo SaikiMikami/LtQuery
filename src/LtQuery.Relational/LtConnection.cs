@@ -1,31 +1,26 @@
-﻿using LtQuery.Elements;
-using LtQuery.Elements.Values;
-using LtQuery.Metadata;
-using LtQuery.Relational.Generators;
+﻿using LtQuery.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
-
 namespace LtQuery.Relational;
 
 class LtConnection : ILtConnection
 {
-    readonly LtConnectionPool _pool;
+    readonly DbConnectionPool _pool;
     readonly EntityMetaService _metaService;
     readonly IServiceProvider _provider;
-    public ConnectionAndCommandCache ConnectionAndCommandCache { get; }
-    DbConnection Connection => ConnectionAndCommandCache.Connection;
-    public LtConnection(LtConnectionPool pool, EntityMetaService metaService, IServiceProvider provider, ConnectionAndCommandCache connectionAndCommandCache)
+    public DbConnection Inner { get; }
+    public LtConnection(DbConnectionPool pool, EntityMetaService metaService, IServiceProvider provider)
     {
         _pool = pool;
         _metaService = metaService;
         _provider = provider;
-        ConnectionAndCommandCache = connectionAndCommandCache;
+        Inner = pool.Create();
     }
     public void Dispose()
     {
-        _pool.Release(this);
+        _pool.Release(Inner);
     }
 
     static class RepositoryCache<TEntity> where TEntity : class
@@ -45,19 +40,35 @@ class LtConnection : ILtConnection
 
     public IReadOnlyList<TEntity> Select<TEntity>(Query<TEntity> query) where TEntity : class => GetRepository<TEntity>().Select(this, query);
 
+    public ValueTask<IReadOnlyList<TEntity>> SelectAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().SelectAsync(this, query, cancellationToken);
+
     public IReadOnlyList<TEntity> Select<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => GetRepository<TEntity>().Select(this, query, values);
+
+    public ValueTask<IReadOnlyList<TEntity>> SelectAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().SelectAsync(this, query, values, cancellationToken);
 
     public TEntity Single<TEntity>(Query<TEntity> query) where TEntity : class => GetRepository<TEntity>().Single(this, query);
 
+    public ValueTask<TEntity> SingleAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().SingleAsync(this, query, cancellationToken);
+
     public TEntity Single<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => GetRepository<TEntity>().Single(this, query, values);
+
+    public ValueTask<TEntity> SingleAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().SingleAsync(this, query, values, cancellationToken);
 
     public TEntity First<TEntity>(Query<TEntity> query) where TEntity : class => GetRepository<TEntity>().First(this, query);
 
+    public ValueTask<TEntity> FirstAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().FirstAsync(this, query, cancellationToken);
+
     public TEntity First<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => GetRepository<TEntity>().First(this, query, values);
+
+    public ValueTask<TEntity> FirstAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().FirstAsync(this, query, values, cancellationToken);
 
     public int Count<TEntity>(Query<TEntity> query) where TEntity : class => GetRepository<TEntity>().Count(this, query);
 
+    public ValueTask<int> CountAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().CountAsync(this, query, cancellationToken);
+
     public int Count<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => GetRepository<TEntity>().Count(this, query, values);
+
+    public ValueTask<int> CountAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().CountAsync(this, query, values, cancellationToken);
 
     public void Add<TEntity>(TEntity entity) where TEntity : class
     {
@@ -68,7 +79,18 @@ class LtConnection : ILtConnection
         GetRepository<TEntity>().Add(this, new Span<TEntity>(ref entity));
     }
 
+    public ValueTask AddAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default) where TEntity : class
+    {
+        var type = typeof(TEntity);
+        if (typeof(IEnumerable).IsAssignableFrom(type))
+            throw new InvalidOperationException("when add multiple, use AddRange()");
+
+        return GetRepository<TEntity>().AddAsync(this, new TEntity[] { entity }, cancellationToken);
+    }
+
     public void AddRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Add(this, entities.ToArray());
+
+    public ValueTask AddRangeAsync<TEntity>(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().AddAsync(this, entities.ToArray(), cancellationToken);
 
     public void Update<TEntity>(TEntity entity) where TEntity : class
     {
@@ -79,7 +101,18 @@ class LtConnection : ILtConnection
         GetRepository<TEntity>().Update(this, new Span<TEntity>(ref entity));
     }
 
+    public ValueTask UpdateAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default) where TEntity : class
+    {
+        var type = typeof(TEntity);
+        if (typeof(IEnumerable).IsAssignableFrom(type))
+            throw new InvalidOperationException("when update multiple, use UpdateRange()");
+
+        return GetRepository<TEntity>().UpdateAsync(this, new TEntity[] { entity }, cancellationToken);
+    }
+
     public void UpdateRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Update(this, entities.ToArray());
+
+    public ValueTask UpdateRangeAsync<TEntity>(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().UpdateAsync(this, entities.ToArray(), cancellationToken);
 
     public void Remove<TEntity>(TEntity entity) where TEntity : class
     {
@@ -90,14 +123,25 @@ class LtConnection : ILtConnection
         GetRepository<TEntity>().Remove(this, new Span<TEntity>(ref entity));
     }
 
+    public ValueTask RemoveAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default) where TEntity : class
+    {
+        var type = typeof(TEntity);
+        if (typeof(IEnumerable).IsAssignableFrom(type))
+            throw new InvalidOperationException("when remove multiple, use RemoveRange()");
+
+        return GetRepository<TEntity>().RemoveAsync(this, new TEntity[] { entity }, cancellationToken);
+    }
+
     public void RemoveRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class => GetRepository<TEntity>().Remove(this, entities.ToArray());
+
+    public ValueTask RemoveRangeAsync<TEntity>(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) where TEntity : class => GetRepository<TEntity>().RemoveAsync(this, entities.ToArray(), cancellationToken);
 
     public ILtUnitOfWork CreateUnitOfWork() => new LtUnitOfWork(this, _metaService);
 
 
-    internal DbTransactionHolder? CurrentTransaction { get; private set; }
+    public DbTransactionHolder? CurrentTransaction { get; private set; }
 
-    public class DbTransactionHolder : IDbTransaction
+    public class DbTransactionHolder : DbTransaction
     {
         readonly LtConnection _connection;
         public DbTransaction Inner { get; }
@@ -108,235 +152,50 @@ class LtConnection : ILtConnection
             connection.CurrentTransaction = this;
         }
 
-        public IDbConnection? Connection => Inner.Connection;
-        public IsolationLevel IsolationLevel => Inner.IsolationLevel;
+        protected override DbConnection? DbConnection => _connection.Inner;
 
-        public void Commit() => Inner.Commit();
-        public void Rollback() => Inner.Rollback();
+        public override IsolationLevel IsolationLevel => Inner.IsolationLevel;
 
-        public void Dispose()
+        public override void Commit() => Inner.Commit();
+        public override Task CommitAsync(CancellationToken cancellationToken = default) => Inner.CommitAsync(cancellationToken);
+        public override void Rollback() => Inner.Rollback();
+        public override Task RollbackAsync(CancellationToken cancellationToken = default) => Inner.RollbackAsync(cancellationToken);
+
+        bool _disposed = false;
+        protected override void Dispose(bool disposing)
         {
-            Inner.Dispose();
+            if (_disposed)
+                return;
+            if (disposing)
+            {
+                Inner.Dispose();
+                _connection.CurrentTransaction = null;
+            }
+            _disposed = true;
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await Inner.DisposeAsync();
             _connection.CurrentTransaction = null;
+            _disposed = true;
         }
     }
-    public IDbTransaction BeginTransaction(IsolationLevel? isolationLevel = default)
+    public DbTransaction BeginTransaction(IsolationLevel? isolationLevel = default)
     {
-        if (Connection.State == ConnectionState.Closed)
-            Connection.Open();
+        if (Inner.State == ConnectionState.Closed)
+            Inner.Open();
 
-        var transaction = ConnectionAndCommandCache.Connection.BeginTransaction(isolationLevel ?? IsolationLevel.Unspecified);
+        var transaction = Inner.BeginTransaction(isolationLevel ?? IsolationLevel.Unspecified);
         return new DbTransactionHolder(this, transaction);
     }
 
-
-    public DbCommand GetSelectCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
+    public async ValueTask<DbTransaction> BeginTransactionAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default)
     {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Select;
-        if (command == null)
-        {
-            command = createCommand<TEntity>(sql);
-            commandCache.Select = command;
-        }
-        return command;
-    }
+        if (Inner.State == ConnectionState.Closed)
+            await Inner.OpenAsync(cancellationToken);
 
-    public DbCommand GetSelectCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Select;
-        if (command == null)
-        {
-            command = createCommand<TEntity, TParameter>(sql);
-            commandCache.Select = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetSingleCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Select;
-        if (command == null)
-        {
-            command = createCommand<TEntity>(sql);
-            commandCache.Select = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetSingleCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Select;
-        if (command == null)
-        {
-            command = createCommand<TEntity, TParameter>(sql);
-            commandCache.Select = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetFirstCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.First;
-        if (command == null)
-        {
-            command = createCommand<TEntity>(sql);
-            commandCache.First = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetFirstCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.First;
-        if (command == null)
-        {
-            command = createCommand<TEntity, TParameter>(sql);
-            commandCache.First = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetCountCommand<TEntity>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Count;
-        if (command == null)
-        {
-            command = createCommand<TEntity>(sql);
-            commandCache.Count = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetCountCommand<TEntity, TParameter>(Query<TEntity> query, string sql) where TEntity : class
-    {
-        var commandCache = ConnectionAndCommandCache.GetCommandCache(query);
-        var command = commandCache.Count;
-        if (command == null)
-        {
-            command = createCommand<TEntity, TParameter>(sql);
-            commandCache.Count = command;
-        }
-        return command;
-    }
-
-    public DbCommand GetAddCommand<TEntity>(string sql, int count) where TEntity : class
-    {
-        return createUpdateCommand<TEntity>(sql, DbMethod.Add, count);
-    }
-
-    public DbCommand GetUpdateCommand<TEntity>(string sql, int count) where TEntity : class
-    {
-        return createUpdateCommand<TEntity>(sql, DbMethod.Update, count);
-    }
-
-    public DbCommand GetRemoveCommand<TEntity>(string sql, int count) where TEntity : class
-    {
-        return createUpdateCommand<TEntity>(sql, DbMethod.Remove, count);
-    }
-
-    DbCommand createCommand<TEntity>(string sql) where TEntity : class
-    {
-        if (Connection.State == ConnectionState.Closed)
-            Connection.Open();
-
-        var command = Connection.CreateCommand();
-        command.CommandText = sql;
-        return command;
-    }
-
-    DbCommand createCommand<TEntity, TParameter>(string sql) where TEntity : class
-    {
-        if (Connection.State == ConnectionState.Closed)
-            Connection.Open();
-
-        var command = Connection.CreateCommand();
-        command.CommandText = sql;
-        var parameters = typeof(TParameter).GetProperties();
-        foreach (var parameter in parameters)
-        {
-            var p = command.CreateParameter();
-            p.ParameterName = $"@{parameter.Name}";
-            p.DbType = getDbType(parameter.PropertyType);
-            command.Parameters.Add(p);
-        }
-        return command;
-    }
-
-    DbCommand createUpdateCommand<TEntity>(string sql, DbMethod dbMethod, int count) where TEntity : class
-    {
-        if (Connection.State == ConnectionState.Closed)
-            Connection.Open();
-
-        var meta = _metaService.GetEntityMeta<TEntity>();
-
-        var command = Connection.CreateCommand();
-        command.CommandText = sql;
-        for (var i = 0; i < count; i++)
-        {
-            foreach (var property in meta.Properties)
-            {
-                switch (dbMethod)
-                {
-                    case DbMethod.Add:
-                        if (property.IsAutoIncrement)
-                            continue;
-                        break;
-                    case DbMethod.Remove:
-                        if (!property.IsKey)
-                            continue;
-                        break;
-                }
-                var p = command.CreateParameter();
-                p.ParameterName = $"@{i}_{property.Name}";
-                p.DbType = getDbType(property.Type);
-                command.Parameters.Add(p);
-            }
-        }
-        return command;
-    }
-
-    static DbType getDbType(Type type)
-    {
-        if (type == typeof(int) || type == typeof(int?))
-            return DbType.Int32;
-        else if (type == typeof(long) || type == typeof(long?))
-            return DbType.Int64;
-        else if (type == typeof(short) || type == typeof(short?))
-            return DbType.Int16;
-        else if (type == typeof(decimal) || type == typeof(decimal?))
-            return DbType.Decimal;
-        else if (type == typeof(byte) || type == typeof(byte?))
-            return DbType.Byte;
-        else if (type == typeof(bool) || type == typeof(bool?))
-            return DbType.Boolean;
-        else if (type == typeof(Guid) || type == typeof(Guid?))
-            return DbType.Guid;
-        else if (type == typeof(DateTime) || type == typeof(DateTime?))
-            return DbType.DateTime;
-        else if (type == typeof(string))
-            return DbType.String;
-        else
-            throw new NotSupportedException();
-    }
-
-    static void buildParameterValues(List<ParameterValue> list, IValue src)
-    {
-        switch (src)
-        {
-            case ParameterValue v0:
-                list.Add(v0);
-                break;
-            case IBinaryOperator v1:
-                buildParameterValues(list, v1.Lhs);
-                buildParameterValues(list, v1.Rhs);
-                break;
-        }
+        var transaction = await Inner.BeginTransactionAsync(isolationLevel ?? IsolationLevel.Unspecified, cancellationToken);
+        return new DbTransactionHolder(this, transaction);
     }
 }

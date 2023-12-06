@@ -10,13 +10,13 @@ public static class ServiceCollectionExtensions
     {
         _this.AddSingleton(typeof(IRepository<>), typeof(Repository<>));
         _this.AddSingleton<EntityMetaService>();
-        _this.AddSingleton<LtConnectionPool>();
+        _this.AddSingleton<DbConnectionPool>();
         _this.AddSingleton(modelConfiguration);
         _this.AddTransient(createDbConnectionFunc);
 
         _this.AddSingleton(settings ?? new());
 
-        _this.AddScoped<ILtConnection>(_ => _.GetRequiredService<LtConnectionPool>().CreateConnection());
+        _this.AddScoped<ILtConnection, LtConnection>();
         _this.AddScoped(_ => _.GetRequiredService<ILtConnection>().CreateUnitOfWork());
     }
 }

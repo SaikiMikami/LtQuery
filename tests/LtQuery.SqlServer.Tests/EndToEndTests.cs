@@ -139,6 +139,105 @@ public class EndToEndTests
         Assert.Null(account);
     }
 
+    [Fact]
+    public async Task SelectAsync()
+    {
+        var blogs = await _connection.SelectAsync(_selectQuery);
+
+        Assert.Equal(10000, blogs.Count);
+        Assert.Equal(1, blogs[0].Id);
+        Assert.Equal(11, blogs[10].Id);
+    }
+    [Fact]
+    public async Task SelectAsync_Complex2()
+    {
+        var categories = await _connection.SelectAsync(_selectComplex2Query, new { Take = 2, DateTime = new DateTime(2010, 1, 1), UserName = "PLCJKJKRUK" });
+
+        Assert.Equal(2, categories.Count);
+        Assert.Equal(1035, categories[0].Blogs.Count);
+        Assert.Equal(1016, categories[1].Blogs.Count);
+    }
+
+    static readonly Query<Blog> _signleQuery = Lt.Query<Blog>().Where(_ => _.Id == 10).ToImmutable();
+
+    [Fact]
+    public void Single()
+    {
+        var blog = _connection.Single(_signleQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    [Fact]
+    public async Task SingleAsync()
+    {
+        var blog = await _connection.SingleAsync(_signleQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    static readonly Query<Blog> _signleWithParameterQuery = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void Single_WithParameter()
+    {
+        var blog = _connection.Single(_signleWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    [Fact]
+    public async Task SingleAsync_WithParameter()
+    {
+        var blog = await _connection.SingleAsync(_signleWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    static readonly Query<Blog> _firstQuery = Lt.Query<Blog>().Where(_ => _.Id == 10).ToImmutable();
+
+    [Fact]
+    public void First()
+    {
+        var blog = _connection.First(_firstQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    [Fact]
+    public async Task FirstAsync()
+    {
+        var blog = await _connection.FirstAsync(_firstQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    static readonly Query<Blog> _firstWithParameterQuery = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void First_WithParameter()
+    {
+        var blog = _connection.First(_firstWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
+    [Fact]
+    public async Task FirstAsync_WithParameter()
+    {
+        var blog = await _connection.FirstAsync(_firstWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("FQTNLSJWAC", blog.Title);
+    }
+
     static readonly Query<Blog> _countQuery = Lt.Query<Blog>().ToImmutable();
 
     [Fact]
@@ -154,6 +253,20 @@ public class EndToEndTests
     public void Count_WithParameter()
     {
         var count = _connection.Count(_countWithParameterQuery, new { Id = 5000 });
+        Assert.Equal(4999, count);
+    }
+
+    [Fact]
+    public async Task CountAsync()
+    {
+        var count = await _connection.CountAsync(_countQuery);
+        Assert.Equal(10000, count);
+    }
+
+    [Fact]
+    public async Task CountAsync_WithParameter()
+    {
+        var count = await _connection.CountAsync(_countWithParameterQuery, new { Id = 5000 });
         Assert.Equal(4999, count);
     }
 

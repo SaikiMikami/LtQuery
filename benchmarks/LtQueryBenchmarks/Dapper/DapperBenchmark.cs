@@ -91,6 +91,32 @@ SELECT t2.[Id], t2.[BlogId], t2.[UserId], t2.[DateTime], t2.[Content]  FROM (SEl
         return accum;
     }
 
+    public async Task<int> SelectIncludeChilrenAsync()
+    {
+        IReadOnlyList<Blog> entities;
+        using (var multi = await _connection.QueryMultipleAsync(_selectIncludeChilrenSql, new { Id = 20 }))
+        {
+            entities = (await multi.ReadAsync<Blog>()).ToArray();
+            var posts = await multi.ReadAsync<Post>();
+
+            var blogDic = entities.ToDictionary(_ => _.Id);
+            foreach (var post in posts)
+            {
+                var blog = blogDic[post.BlogId];
+                blog.Posts.Add(post);
+                post.Blog = blog;
+            }
+        }
+
+        var accum = 0;
+        foreach (var entity in entities)
+        {
+            AddHashCode(ref accum, entity.Id);
+            foreach (var post in entity.Posts)
+                AddHashCode(ref accum, post.Id);
+        }
+        return accum;
+    }
 
     const string _selectComplexSql = @"
 SELECT DISTINCT t0.[Id], t0.[Title], t0.[CategoryId], t0.[UserId], t0.[DateTime], t0.[Content], t1.[Id], t1.[Name], t1.[Email], t1.[AccountId] 

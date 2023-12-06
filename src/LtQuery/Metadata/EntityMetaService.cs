@@ -34,7 +34,7 @@ public class EntityMetaService
     public static EntityMeta GetEntityMeta(Type type)
     {
         var type0 = typeof(EntityMetaService);
-        var method = type0.GetMethod(nameof(GetEntityMeta), 1, Array.Empty<Type>())!;
+        var method = type0.GetMethod(nameof(GetEntityMeta), 1, Type.EmptyTypes)!;
         method = method.MakeGenericMethod(type);
         return (EntityMeta)method.Invoke(null, null)!;
     }

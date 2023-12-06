@@ -1,5 +1,6 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.Common;
 
 namespace LtQuery.Relational.Tests;
 
@@ -14,7 +15,7 @@ public class LtConnectionPoolTests
     [Fact]
     public void ScopeTest()
     {
-        ConnectionAndCommandCache cache0;
+        DbConnection cache0;
         using (var scope = _provider.CreateScope())
         {
             var provider = scope.ServiceProvider;
@@ -25,15 +26,15 @@ public class LtConnectionPoolTests
             // Opend
             connection0.Select(Lt.Query<Blog>().Take(1));
 
-            cache0 = ((LtConnection)connection0).ConnectionAndCommandCache;
+            cache0 = ((LtConnection)connection0).Inner;
         }
         using (var scope = _provider.CreateScope())
         {
             var provider = scope.ServiceProvider;
             var connection0 = provider.GetRequiredService<ILtConnection>();
-            Assert.Same(cache0, ((LtConnection)connection0).ConnectionAndCommandCache);
+            Assert.Same(cache0, ((LtConnection)connection0).Inner);
 
-            // Opend
+            // can Select
             connection0.Select(Lt.Query<Blog>().Take(1));
         }
     }
@@ -41,7 +42,7 @@ public class LtConnectionPoolTests
     [Fact]
     public void ScopeTest_LostedConnection()
     {
-        ConnectionAndCommandCache cache0;
+        DbConnection cache0;
         using (var scope = _provider.CreateScope())
         {
             var provider = scope.ServiceProvider;
@@ -50,17 +51,17 @@ public class LtConnectionPoolTests
             // can Select
             connection0.Select(Lt.Query<Blog>().Take(1));
 
-            cache0 = ((LtConnection)connection0).ConnectionAndCommandCache;
+            cache0 = ((LtConnection)connection0).Inner;
 
             // Dispose Connection
-            cache0.Connection.Dispose();
+            cache0.Dispose();
         }
         using (var scope = _provider.CreateScope())
         {
             var provider = scope.ServiceProvider;
             var connection0 = provider.GetRequiredService<ILtConnection>();
 
-            Assert.NotSame(cache0, ((LtConnection)connection0).ConnectionAndCommandCache);
+            Assert.NotSame(cache0, ((LtConnection)connection0).Inner);
 
             // can Select
             connection0.Select(Lt.Query<Blog>().Take(1));

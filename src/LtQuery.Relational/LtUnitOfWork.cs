@@ -18,13 +18,28 @@ class LtUnitOfWork : ILtUnitOfWork
     }
 
     public IReadOnlyList<TEntity> Select<TEntity>(Query<TEntity> query) where TEntity : class => _connection.Select(query);
+    public ValueTask<IReadOnlyList<TEntity>> SelectAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => _connection.SelectAsync(query, cancellationToken);
+
     public IReadOnlyList<TEntity> Select<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => _connection.Select(query, values);
+    public ValueTask<IReadOnlyList<TEntity>> SelectAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => _connection.SelectAsync(query, values, cancellationToken);
+
     public TEntity Single<TEntity>(Query<TEntity> query) where TEntity : class => _connection.Single(query);
+    public ValueTask<TEntity> SingleAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => _connection.SingleAsync(query);
+
     public TEntity Single<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => _connection.Single(query, values);
+    public ValueTask<TEntity> SingleAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => _connection.SingleAsync(query, values, cancellationToken);
+
     public TEntity First<TEntity>(Query<TEntity> query) where TEntity : class => _connection.First(query);
+    public ValueTask<TEntity> FirstAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => _connection.FirstAsync(query);
+
     public TEntity First<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => _connection.First(query, values);
+    public ValueTask<TEntity> FirstAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => _connection.FirstAsync(query, values, cancellationToken);
+
     public int Count<TEntity>(Query<TEntity> query) where TEntity : class => _connection.Count(query);
+    public ValueTask<int> CountAsync<TEntity>(Query<TEntity> query, CancellationToken cancellationToken = default) where TEntity : class => _connection.CountAsync(query);
+
     public int Count<TEntity, TParameter>(Query<TEntity> query, TParameter values) where TEntity : class => _connection.Count(query, values);
+    public ValueTask<int> CountAsync<TEntity, TParameter>(Query<TEntity> query, TParameter values, CancellationToken cancellationToken = default) where TEntity : class => _connection.CountAsync(query, values, cancellationToken);
 
     interface IDifference
     {
@@ -38,12 +53,21 @@ class LtUnitOfWork : ILtUnitOfWork
 
         public void Reflect(LtConnection connection)
         {
-            connection.AddRange(Adding);
-            Adding.Clear();
-            connection.UpdateRange(Updating);
-            Updating.Clear();
-            connection.RemoveRange(Removing);
-            Removing.Clear();
+            if (Adding.Count != 0)
+            {
+                connection.AddRange(Adding);
+                Adding.Clear();
+            }
+            if (Updating.Count != 0)
+            {
+                connection.UpdateRange(Updating);
+                Updating.Clear();
+            }
+            if (Removing.Count != 0)
+            {
+                connection.RemoveRange(Removing);
+                Removing.Clear();
+            }
         }
     }
 
@@ -151,6 +175,32 @@ class LtUnitOfWork : ILtUnitOfWork
                 transaction.Rollback();
                 throw;
             }
+        }
+    }
+
+    public async ValueTask CommitAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default)
+    {
+
+        var transaction = await _connection.BeginTransactionAsync(isolationLevel ?? IsolationLevel.Unspecified, cancellationToken);
+        try
+        {
+            foreach (var meta in _metaService.AllEntityMetas)
+            {
+                if (_differences.TryGetValue(meta.Type, out var value))
+                {
+                    value.Reflect(_connection);
+                }
+            }
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+        finally
+        {
+            await transaction.DisposeAsync();
         }
     }
 }

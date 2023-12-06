@@ -5,6 +5,27 @@ namespace LtQuery.Relational.Generators;
 
 public static class ILGeneratorExtensions
 {
+    public static void EmitLdarg(this ILGenerator _this, int num)
+    {
+        switch (num)
+        {
+            case 0:
+                _this.Emit(OpCodes.Ldarg_0);
+                break;
+            case 1:
+                _this.Emit(OpCodes.Ldarg_1);
+                break;
+            case 2:
+                _this.Emit(OpCodes.Ldarg_2);
+                break;
+            case 3:
+                _this.Emit(OpCodes.Ldarg_3);
+                break;
+            default:
+                _this.Emit(OpCodes.Ldarg_S, (sbyte)num);
+                break;
+        }
+    }
     public static void EmitLdarga_S(this ILGenerator _this, int num)
         => _this.Emit(OpCodes.Ldarga_S, (sbyte)num);
 
@@ -57,6 +78,12 @@ public static class ILGeneratorExtensions
                 break;
         }
     }
+
+    public static void EmitLdfld(this ILGenerator _this, FieldBuilder field)
+        => _this.Emit(OpCodes.Ldfld, field);
+
+    public static void EmitStfld(this ILGenerator _this, FieldBuilder field)
+        => _this.Emit(OpCodes.Stfld, field);
 
     public static void EmitLdc_I4(this ILGenerator _this, int num)
     {
