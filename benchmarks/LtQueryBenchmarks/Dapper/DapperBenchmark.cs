@@ -2,6 +2,7 @@
 using LtQuery.TestData;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Text;
 
 namespace LtQueryBenchmarks.Dapper;
 
@@ -194,25 +195,27 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]
         return accum;
     }
 
-    const string _addSql = @"
-INSERT INTO [Tag] ([Name])
-OUTPUT inserted.[Id] VALUES
-(@_0_Name),
-(@_1_Name),
-(@_2_Name),
-(@_3_Name),
-(@_4_Name),
-(@_5_Name),
-(@_6_Name),
-(@_7_Name),
-(@_8_Name),
-(@_9_Name)";
-
     public int AddRange()
     {
+        const int count = 10;
+
+        var tags = new List<Tag>();
+        for (var i = 0; i < count; i++)
+        {
+            tags.Add(new(_random.NextString()));
+        }
+
         using (var tran = _connection.BeginTransaction())
         {
-            var ids = _connection.Query<int>(_addSql, new
+            var sqlb = new StringBuilder();
+            sqlb.Append(@"INSERT INTO [Tag] ([Name]) OUTPUT inserted.[Id] VALUES ");
+            for (var i = 0; i < count; i++)
+            {
+                if (i != 0)
+                    sqlb.Append(", ");
+                sqlb.Append("(@_").Append(i).Append("_Name)");
+            }
+            var ids = _connection.Query<int>(sqlb.ToString(), new
             {
                 _0_Name = _random.NextString(),
                 _1_Name = _random.NextString(),
@@ -225,9 +228,12 @@ OUTPUT inserted.[Id] VALUES
                 _8_Name = _random.NextString(),
                 _9_Name = _random.NextString(),
             }, tran);
-            foreach (var id in ids)
             {
-
+                var i = 0;
+                foreach (var id in ids)
+                {
+                    tags[i++].Id = id;
+                }
             }
 
             tran.Commit();

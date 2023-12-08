@@ -32,9 +32,9 @@ class ReadGenerator : AbstractGenerator
         var module = assm.DefineDynamicModule("DynamicModule");
         var className = $"{_className}_{_no++}";
         var type = module.DefineType(className, TypeAttributes.Public, typeof(object));
-        var method = type.DefineMethod(_methodName, MethodAttributes.Public | MethodAttributes.Static, typeof(IReadOnlyList<TEntity>), new Type[] { typeof(DbCommand) });
+        var method = type.DefineMethod(_methodName, MethodAttributes.Public | MethodAttributes.Static, typeof(IReadOnlyList<TEntity>), new Type[] { typeof(DbDataReader) });
 #else
-        var method = new DynamicMethod($"{_methodName}_{_no++}", typeof(IReadOnlyList<TEntity>), new Type[] { typeof(DbCommand) }, GetType().Module, true);
+        var method = new DynamicMethod($"{_methodName}_{_no++}", typeof(IReadOnlyList<TEntity>), new Type[] { typeof(DbDataReader) }, GetType().Module, true);
 #endif
 
         var il = method.GetILGenerator();
@@ -45,33 +45,12 @@ class ReadGenerator : AbstractGenerator
 
         // loc_0
         var entities = il.DeclareLocal(typeof(List<TEntity>));
-        // loc_1
-        var reader = il.DeclareLocal(typeof(DbDataReader));
 
         // var entities = new List<TEntity>();
         il.Emit(OpCodes.Newobj, typeof(List<TEntity>).GetConstructor(Type.EmptyTypes)!);
         il.EmitStloc(entities);
 
-        // using(var reader = command.ExecuteReader())
-        il.Emit(OpCodes.Ldarg_0);
-        il.EmitCall(DbCommand_ExecuteReader);
-        il.EmitStloc(reader);
-        // try
-        il.BeginExceptionBlock();
-        {
-            queryGenerator.EmitSelect(il, reader);
-        }
-        // finally
-        {
-            il.BeginFinallyBlock();
-            var finallyEnd = il.DefineLabel();
-            il.EmitLdloc(reader);
-            il.Emit(OpCodes.Brfalse_S, finallyEnd);
-            il.EmitLdloc(reader);
-            il.EmitCall(IDisposable_Dispose);
-            il.MarkLabel(finallyEnd);
-            il.EndExceptionBlock();
-        }
+        queryGenerator.EmitSelect(il);
 
         il.EmitLdloc(entities);
         il.Emit(OpCodes.Ret);
