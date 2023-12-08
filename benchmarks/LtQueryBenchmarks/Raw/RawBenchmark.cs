@@ -1,6 +1,7 @@
 ﻿using LtQuery.TestData;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Text;
 
 namespace LtQueryBenchmarks.Raw;
 
@@ -299,25 +300,31 @@ LEFT JOIN [User] AS t3 ON t2.[UserId] = t3.[Id]";
 
     const string _addSql = @"
 INSERT INTO [Tag] ([Name])
-OUTPUT inserted.[Id] VALUES
-(@0_Name),
-(@1_Name),
-(@2_Name),
-(@3_Name),
-(@4_Name),
-(@5_Name),
-(@6_Name),
-(@7_Name),
-(@8_Name),
-(@9_Name)";
+OUTPUT inserted.[Id] VALUES ";
 
     public int AddRange()
     {
+        const int count = 10;
+
+        var tags = new List<Tag>();
+        for (var i = 0; i < count; i++)
+        {
+            tags.Add(new(_random.NextString()));
+        }
+
         using (var tran = _connection.BeginTransaction())
         {
-            using (var command = new SqlCommand(_addSql, _connection))
+            var sqlb = new StringBuilder();
+            sqlb.Append(@"INSERT INTO [Tag] ([Name]) OUTPUT inserted.[Id] VALUES ");
+            for (var i = 0; i < count; i++)
             {
-                for (var i = 0; i < 10; i++)
+                if (i != 0)
+                    sqlb.Append(", ");
+                sqlb.Append("(@").Append(i).Append("_Name)");
+            }
+            using (var command = new SqlCommand(sqlb.ToString(), _connection))
+            {
+                for (var i = 0; i < count; i++)
                 {
                     var p = command.CreateParameter();
                     p.ParameterName = $"@{i}_Name";
@@ -327,14 +334,15 @@ OUTPUT inserted.[Id] VALUES
                 command.Transaction = tran;
                 for (var i = 0; i < 10; i++)
                 {
-                    command.Parameters[i].Value = _random.NextString();
+                    command.Parameters[i].Value = tags[i].Name;
                 }
 
                 using (var reader = command.ExecuteReader())
                 {
+                    var i = 0;
                     while (reader.Read())
                     {
-                        reader.GetInt32(0);
+                        tags[i].Id = reader.GetInt32(0);
                     }
                 }
             }

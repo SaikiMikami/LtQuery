@@ -105,7 +105,7 @@ class TableGenerator : AbstractGenerator
     }
 
     // readerからデータを取得しentityを生成する
-    public void EmitCreate(ILGenerator il, LocalBuilder reader, ref int index)
+    public void EmitCreate(ILGenerator il, ref int index)
     {
         // 重複が混ざっているSELECT
         if (Navigation != null && Navigation.NavigationType == NavigationType.Multi)
@@ -121,14 +121,14 @@ class TableGenerator : AbstractGenerator
 
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
-            il.EmitLdloc(1);
+            il.EmitLdarg(0);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brtrue_S, ifEnd);
             {
                 // 重複カット
                 // id = dic[(int)reader[0]];
-                emitReadColumn(il, reader, Meta.Key, index);
+                emitReadColumn(il, Meta.Key, index);
                 il.EmitStloc(Id);
 
                 // if(preId != id)
@@ -152,7 +152,7 @@ class TableGenerator : AbstractGenerator
                         {
                             // push (?)reader[i]
                             var property = properties[i];
-                            emitReadColumn(il, reader, property, index + i);
+                            emitReadColumn(il, property, index + i);
                         }
 
                         // push new TEntity()
@@ -184,13 +184,13 @@ class TableGenerator : AbstractGenerator
         {
             // if(!reader.IsDBNull(0))
             var ifEnd = il.DefineLabel();
-            il.EmitLdloc(1);
+            il.EmitLdarg(0);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brtrue_S, ifEnd);
             {
                 // entity = new Entity()
-                emitCreate(il, reader, index);
+                emitCreate(il, index);
                 if (Dictionary != null)
                 {
                     if (Id == null)
@@ -229,7 +229,7 @@ class TableGenerator : AbstractGenerator
                     throw new InvalidProgramException("PreParentId == null");
 
                 // parentId = dic[(int)reader[0]];
-                emitReadColumn(il, reader, Parent.Meta.Key, index + 0);
+                emitReadColumn(il, Parent.Meta.Key, index + 0);
                 il.EmitStloc(Parent.Id);
 
                 // if(preParentId != parentId)
@@ -254,7 +254,7 @@ class TableGenerator : AbstractGenerator
             var hasEntities = IsRootTable && QueryGenerator.Parent == null;
 
             // entity = new Entity()
-            emitCreate(il, reader, index);
+            emitCreate(il, index);
             if (hasEntities)
             {
                 if (Entity == null)
@@ -290,14 +290,14 @@ class TableGenerator : AbstractGenerator
         foreach (var child in Children)
         {
             if ((child.Table.TableType & TableType.Select) != 0)
-                child.EmitCreate(il, reader, ref index);
+                child.EmitCreate(il, ref index);
         }
     }
 
-    void emitCreate(ILGenerator il, LocalBuilder reader, int index)
+    void emitCreate(ILGenerator il, int index)
     {
         // push (?)reader[0]
-        emitReadColumn(il, reader, Meta.Key, index + 0);
+        emitReadColumn(il, Meta.Key, index + 0);
         if (Id != null)
         {
             il.EmitStloc(Id);
@@ -309,7 +309,7 @@ class TableGenerator : AbstractGenerator
         {
             // push (?)reader[i]
             var property = properties[i];
-            emitReadColumn(il, reader, property, index + i);
+            emitReadColumn(il, property, index + i);
         }
 
         // push new TEntity()
@@ -320,7 +320,7 @@ class TableGenerator : AbstractGenerator
         il.EmitStloc(Entity);
     }
 
-    static void emitReadColumn(ILGenerator il, LocalBuilder reader, PropertyMeta property, int index)
+    static void emitReadColumn(ILGenerator il, PropertyMeta property, int index)
     {
         if (property.Type.IsNullable())
         {
@@ -331,7 +331,7 @@ class TableGenerator : AbstractGenerator
             var elseStart = il.DefineLabel();
 
             // if(reader.IsDBNull(index))
-            il.EmitLdloc(1);
+            il.EmitLdarg(0);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
@@ -344,7 +344,7 @@ class TableGenerator : AbstractGenerator
             // else
             {
                 il.MarkLabel(elseStart);
-                il.EmitLdloc(1);
+                il.EmitLdarg(0);
                 il.EmitLdc_I4(index);
 
                 if (type2 == typeof(int))
@@ -376,7 +376,7 @@ class TableGenerator : AbstractGenerator
             var elseStart = il.DefineLabel();
 
             // if(reader.IsDBNull(index))
-            il.EmitLdloc(1);
+            il.EmitLdarg(0);
             il.EmitLdc_I4(index);
             il.EmitCall(DbDataReader_IsDBNull);
             il.Emit(OpCodes.Brfalse_S, elseStart);
@@ -387,7 +387,7 @@ class TableGenerator : AbstractGenerator
             // else
             {
                 il.MarkLabel(elseStart);
-                il.EmitLdloc(1);
+                il.EmitLdarg(0);
                 il.EmitLdc_I4(index);
 
                 if (type == typeof(string))
@@ -400,7 +400,7 @@ class TableGenerator : AbstractGenerator
         else
         {
             var type = property.Type;
-            il.EmitLdloc(1);
+            il.EmitLdarg(0);
             il.EmitLdc_I4(index);
             if (type == typeof(int))
                 il.EmitCall(DbDataReader_GetInt32);
