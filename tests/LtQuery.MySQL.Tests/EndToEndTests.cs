@@ -31,8 +31,8 @@ public class EndToEndTests
     {
         var blogs = _connection.Select(_selectWithWhereQuery);
 
-        Assert.Equal(3985, blogs.Count);
-        Assert.Equal(4, blogs[0].Id);
+        Assert.Equal(3983, blogs.Count);
+        Assert.Equal(3, blogs[0].Id);
         Assert.Equal(30, blogs[10].Id);
     }
 
@@ -43,9 +43,9 @@ public class EndToEndTests
     {
         var blogs = _connection.Select(_selectWithWhereAndOrderByQuery);
 
-        Assert.Equal(3985, blogs.Count);
-        Assert.Equal(15, blogs[0].Id);
-        Assert.Equal(146, blogs[10].Id);
+        Assert.Equal(3983, blogs.Count);
+        Assert.Equal(3, blogs[0].Id);
+        Assert.Equal(64, blogs[10].Id);
     }
 
     static readonly Query<Blog> _selectWithWParameterQuery = Lt.Query<Blog>().Where(_ => _.UserId < Lt.Arg<int>("UserId")).ToImmutable();
@@ -55,9 +55,9 @@ public class EndToEndTests
     {
         var blogs = _connection.Select(_selectWithWParameterQuery, new { UserId = 4 });
 
-        Assert.Equal(3003, blogs.Count);
+        Assert.Equal(3004, blogs.Count);
         blogs = _connection.Select(_selectWithWParameterQuery, new { UserId = 2 });
-        Assert.Equal(980, blogs.Count);
+        Assert.Equal(977, blogs.Count);
     }
 
     static readonly Query<Blog> _selectWithChildrenHasParameterQuery = Lt.Query<Blog>().Where(_ => _.Posts.Any(_ => _.User!.Name == Lt.Arg<string>("UserName"))).ToImmutable();
@@ -67,8 +67,8 @@ public class EndToEndTests
     {
         var blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "PLCJKJKRUK" });
 
-        Assert.Equal(9938, blogs.Count);
-        blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "GOFLFNVPAT" });
+        Assert.Equal(9953, blogs.Count);
+        blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "OIAYBTKOBN" });
         Assert.Empty(blogs);
     }
 
@@ -82,7 +82,7 @@ public class EndToEndTests
         Assert.Equal(2, blogs.Count);
         Assert.Equal(100, blogs[0].Posts.Count);
         Assert.Equal(100, blogs[1].Posts.Count);
-        blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "GOFLFNVPAT" });
+        blogs = _connection.Select(_selectWithChildrenHasParameterQuery, new { UserName = "OIAYBTKOBN" });
         Assert.Empty(blogs);
     }
 
@@ -96,8 +96,8 @@ public class EndToEndTests
         var categories = _connection.Select(_selectComplex2Query, new { Take = 2, DateTime = new DateTime(2010, 1, 1), UserName = "PLCJKJKRUK" });
 
         Assert.Equal(2, categories.Count);
-        Assert.Equal(1035, categories[0].Blogs.Count);
-        Assert.Equal(1016, categories[1].Blogs.Count);
+        Assert.Equal(984, categories[0].Blogs.Count);
+        Assert.Equal(969, categories[1].Blogs.Count);
     }
 
     static readonly Query<Post> _selectComplex3Query = Lt.Query<Post>()
@@ -112,14 +112,14 @@ public class EndToEndTests
         Assert.Equal(5, posts.Count);
 
         var user = posts[0].User;
-        Assert.Equal(192, posts[0].Id);
+        Assert.Equal(204, posts[0].Id);
         Assert.NotNull(user);
-        Assert.Equal(10100, user.Blogs.Count);
+        Assert.Equal(9560, user.Blogs.Count);
 
         user = posts[2].User;
-        Assert.Equal(226, posts[2].Id);
+        Assert.Equal(318, posts[2].Id);
         Assert.NotNull(user);
-        Assert.Equal(10100, user.Blogs.Count);
+        Assert.Equal(9560, user.Blogs.Count);
     }
 
     static readonly Query<Blog> _selectIncludeStringKeyTableQuery = Lt.Query<Blog>().Include(_ => _.User.Account).OrderBy(_ => _.Id).Take(5).ToImmutable();
@@ -133,10 +133,122 @@ public class EndToEndTests
 
         var account = blogs[3].User.Account;
         Assert.NotNull(account);
-        Assert.Equal("ABOTBPQGHD", account.Password);
+        Assert.Equal("XQXPWOVBTP", account.Password);
 
         account = blogs[2].User.Account;
         Assert.Null(account);
+    }
+
+    static readonly Query<Blog> _selectIncludeManyToManyQuery = Lt.Query<Blog>().Include(_ => _.BlogTags).ThenInclude(_ => _.Tag).OrderBy(_ => _.Id).Take(5).ToImmutable();
+
+    [Fact]
+    public void Select_IncludeManyToMany()
+    {
+        var blogs = _connection.Select(_selectIncludeManyToManyQuery);
+
+        Assert.Equal(5, blogs.Count);
+
+        var tags = blogs[3].BlogTags.Select(_ => _.Tag).ToArray();
+        Assert.Equal("LRKAPDXIFL", tags[1].Name);
+    }
+
+    [Fact]
+    public async Task SelectAsync()
+    {
+        var blogs = await _connection.SelectAsync(_selectQuery);
+
+        Assert.Equal(10000, blogs.Count);
+        Assert.Equal(1, blogs[0].Id);
+        Assert.Equal(11, blogs[10].Id);
+    }
+    [Fact]
+    public async Task SelectAsync_Complex2()
+    {
+        var categories = await _connection.SelectAsync(_selectComplex2Query, new { Take = 2, DateTime = new DateTime(2010, 1, 1), UserName = "PLCJKJKRUK" });
+
+        Assert.Equal(2, categories.Count);
+        Assert.Equal(984, categories[0].Blogs.Count);
+        Assert.Equal(969, categories[1].Blogs.Count);
+    }
+
+    static readonly Query<Blog> _signleQuery = Lt.Query<Blog>().Where(_ => _.Id == 10).ToImmutable();
+
+    [Fact]
+    public void Single()
+    {
+        var blog = _connection.Single(_signleQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    [Fact]
+    public async Task SingleAsync()
+    {
+        var blog = await _connection.SingleAsync(_signleQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    static readonly Query<Blog> _signleWithParameterQuery = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void Single_WithParameter()
+    {
+        var blog = _connection.Single(_signleWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    [Fact]
+    public async Task SingleAsync_WithParameter()
+    {
+        var blog = await _connection.SingleAsync(_signleWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    static readonly Query<Blog> _firstQuery = Lt.Query<Blog>().Where(_ => _.Id == 10).ToImmutable();
+
+    [Fact]
+    public void First()
+    {
+        var blog = _connection.First(_firstQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    [Fact]
+    public async Task FirstAsync()
+    {
+        var blog = await _connection.FirstAsync(_firstQuery);
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    static readonly Query<Blog> _firstWithParameterQuery = Lt.Query<Blog>().Where(_ => _.Id == Lt.Arg<int>("Id")).ToImmutable();
+
+    [Fact]
+    public void First_WithParameter()
+    {
+        var blog = _connection.First(_firstWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
+    }
+
+    [Fact]
+    public async Task FirstAsync_WithParameter()
+    {
+        var blog = await _connection.FirstAsync(_firstWithParameterQuery, new { Id = 10 });
+
+        Assert.Equal(10, blog.Id);
+        Assert.Equal("HOURLWWOYG", blog.Title);
     }
 
     static readonly Query<Blog> _countQuery = Lt.Query<Blog>().ToImmutable();
@@ -154,6 +266,20 @@ public class EndToEndTests
     public void Count_WithParameter()
     {
         var count = _connection.Count(_countWithParameterQuery, new { Id = 5000 });
+        Assert.Equal(4999, count);
+    }
+
+    [Fact]
+    public async Task CountAsync()
+    {
+        var count = await _connection.CountAsync(_countQuery);
+        Assert.Equal(10000, count);
+    }
+
+    [Fact]
+    public async Task CountAsync_WithParameter()
+    {
+        var count = await _connection.CountAsync(_countWithParameterQuery, new { Id = 5000 });
         Assert.Equal(4999, count);
     }
 
@@ -199,44 +325,47 @@ public class EndToEndTests
     {
         int id;
         Tag tag;
-        using (var unitOfWork = _connection.CreateUnitOfWork())
+        using (var transaction = _connection.BeginTransaction())
         {
-            tag = new Tag("tag");
-            Assert.Equal(0, tag.Id);
+            using (var unitOfWork = _connection.CreateUnitOfWork())
+            {
+                tag = new Tag("tag");
+                Assert.Equal(0, tag.Id);
 
-            unitOfWork.Add(tag);
+                unitOfWork.Add(tag);
 
-            Assert.Equal(0, tag.Id);
+                Assert.Equal(0, tag.Id);
 
-            unitOfWork.Commit();
+                unitOfWork.Commit();
 
-            id = tag.Id;
-            Assert.NotEqual(0, id);
-        }
+                id = tag.Id;
+                Assert.NotEqual(0, id);
+            }
 
-        using (var unitOfWork = _connection.CreateUnitOfWork())
-        {
-            tag = unitOfWork.Single(_getTag, new { Id = id });
+            using (var unitOfWork = _connection.CreateUnitOfWork())
+            {
+                tag = unitOfWork.Single(_getTag, new { Id = id });
+                Assert.NotNull(tag);
+                tag.Name = "NewName";
+
+                unitOfWork.Update(tag);
+
+                unitOfWork.Commit();
+            }
+
+            tag = _connection.Single(_getTag, new { Id = id });
             Assert.NotNull(tag);
-            tag.Name = "NewName";
+            Assert.Equal("NewName", tag.Name);
 
-            unitOfWork.Update(tag);
+            using (var unitOfWork = _connection.CreateUnitOfWork())
+            {
+                tag = unitOfWork.Single(_getTag, new { Id = id });
+                Assert.NotNull(tag);
 
-            unitOfWork.Commit();
-        }
+                unitOfWork.Remove(tag);
 
-        tag = _connection.Single(_getTag, new { Id = id });
-        Assert.NotNull(tag);
-        Assert.Equal("NewName", tag.Name);
-
-        using (var unitOfWork = _connection.CreateUnitOfWork())
-        {
-            tag = unitOfWork.Single(_getTag, new { Id = id });
-            Assert.NotNull(tag);
-
-            unitOfWork.Remove(tag);
-
-            unitOfWork.Commit();
+                unitOfWork.Commit();
+            }
         }
 
         try
@@ -251,14 +380,17 @@ public class EndToEndTests
     public void Add_WithChild()
     {
         var random = new RandomEx(0);
-        using (var transaction = _connection.BeginTransaction())
+        using (var tran = _connection.BeginTransaction())
+        using (var unitOfWork = _connection.CreateUnitOfWork())
         {
             var user = new User(random.NextString(), null, null);
-            _connection.Add(user);
+            unitOfWork.Add(user);
             var category = new Category(random.NextString());
-            _connection.Add(category);
+            unitOfWork.Add(category);
             var blog = new Blog(random.NextString(), category, user, random.NextDateTime(), random.NextString());
-            _connection.Add(blog);
+            unitOfWork.Add(blog);
+
+            unitOfWork.Commit();
 
             Assert.NotEqual(0, user.Id);
             Assert.NotEqual(0, category.Id);
@@ -291,6 +423,48 @@ public class EndToEndTests
 
             var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = users[0].Id });
             Assert.Equal(users[0].Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Upddate_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var users = new List<User>();
+            for (var i = 0; i < 1000; i++)
+            {
+                users.Add(new(i + 1, random.NextString(), null, null));
+            }
+
+            _connection.UpdateRange(users);
+
+            var user2 = _connection.Single(Lt.Query<User>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = users[0].Id });
+            Assert.Equal(users[0].Name, user2.Name);
+        }
+    }
+
+    [Fact]
+    public void Remove_Many()
+    {
+        var random = new RandomEx(0);
+        using (var transaction = _connection.BeginTransaction())
+        {
+            var postss = new List<Post>();
+            for (var i = 0; i < 1000; i++)
+            {
+                postss.Add(new() { Id = i + 1 });
+            }
+
+            _connection.RemoveRange(postss);
+
+            try
+            {
+                _connection.Single(Lt.Query<Post>().Where(_ => _.Id == Lt.Arg<int>("Id")), new { Id = postss[0].Id });
+                Assert.Fail();
+            }
+            catch { }
         }
     }
 }

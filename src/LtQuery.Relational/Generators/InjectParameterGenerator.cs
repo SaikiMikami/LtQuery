@@ -1,7 +1,6 @@
 ﻿using LtQuery.Metadata;
 using System.Data;
 using System.Data.Common;
-using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 
@@ -84,10 +83,6 @@ class InjectParameterGenerator : AbstractGenerator
     }
 
 
-
-    static MethodInfo _DefaultInterpolatedStringHandler_AppendFormattedInt = typeof(DefaultInterpolatedStringHandler).GetMethods(BindingFlags.Public | BindingFlags.Instance).Single(_ => _.Name == nameof(DefaultInterpolatedStringHandler.AppendFormatted) && _.IsGenericMethod && _.GetParameters().Length == 1).MakeGenericMethod(typeof(int));
-
-
     public InjectParameterForUpdate<TEntity> CreateInjectParameterForUpdateFunc<TEntity>(DbMethod dbMethod) where TEntity : class
     {
         var methodb = new DynamicMethod($"{_methodName}_{_no++}", null, new[] { typeof(DbCommand), typeof(Span<TEntity>) }, GetType().Module, true);
@@ -153,11 +148,6 @@ class InjectParameterGenerator : AbstractGenerator
                 }
             }
 
-            var constructor = typeof(DefaultInterpolatedStringHandler).GetConstructor(new[] { typeof(int), typeof(int) })!;
-            var method1 = _DefaultInterpolatedStringHandler_AppendFormattedInt;
-            var method2 = typeof(DefaultInterpolatedStringHandler).GetMethod(nameof(DefaultInterpolatedStringHandler.AppendLiteral), new[] { typeof(string) })!;
-            var method3 = typeof(DefaultInterpolatedStringHandler).GetMethod(nameof(DefaultInterpolatedStringHandler.ToStringAndClear))!;
-
             foreach (var property in meta.Properties)
             {
                 switch (dbMethod)
@@ -184,18 +174,18 @@ class InjectParameterGenerator : AbstractGenerator
                 il.EmitLdloca_S(stringb);
                 il.EmitLdc_I4(4);
                 il.EmitLdc_I4(1);
-                il.Emit(OpCodes.Call, constructor);
+                il.Emit(OpCodes.Call, DefaultInterpolatedStringHandler_Constructor);
                 il.EmitLdloca_S(stringb);
                 il.Emit(OpCodes.Ldstr, "@");
-                il.Emit(OpCodes.Call, method2);
+                il.Emit(OpCodes.Call, DefaultInterpolatedStringHandler_AppendLiteral);
                 il.EmitLdloca_S(stringb);
                 il.EmitLdloc(i);
-                il.Emit(OpCodes.Call, method1);
+                il.Emit(OpCodes.Call, DefaultInterpolatedStringHandler_AppendFormattedInt);
                 il.EmitLdloca_S(stringb);
                 il.Emit(OpCodes.Ldstr, $"_{property.Name}");
-                il.Emit(OpCodes.Call, method2);
+                il.Emit(OpCodes.Call, DefaultInterpolatedStringHandler_AppendLiteral);
                 il.EmitLdloca_S(stringb);
-                il.Emit(OpCodes.Call, method3);
+                il.Emit(OpCodes.Call, DefaultInterpolatedStringHandler_ToStringAndClear);
                 il.EmitCall(DbParameter_set_ParameterName);
 
 

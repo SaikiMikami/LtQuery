@@ -46,7 +46,7 @@ CREATE TABLE `Tag` (
 CREATE TABLE `BlogTag` (
     `BlogId` INT NOT NULL,
     `TagId` INT NOT NULL,
-     PRIMARY KEY (`BlogId`, `TagId`)
+     PRIMARY KEY (`BlogId`, `TagId`),
      FOREIGN KEY (`BlogId`) REFERENCES `Blog`(`Id`),
      FOREIGN KEY (`TagId`) REFERENCES `Tag`(`Id`)
 );
