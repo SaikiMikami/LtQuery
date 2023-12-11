@@ -364,14 +364,17 @@ public class EndToEndTests
     public void Add_WithChild()
     {
         var random = new RandomEx(0);
-        using (var transaction = _connection.BeginTransaction())
+        using (var tran = _connection.BeginTransaction())
+        using (var unitOfWork = _connection.CreateUnitOfWork())
         {
             var user = new User(random.NextString(), null, null);
-            _connection.Add(user);
+            unitOfWork.Add(user);
             var category = new Category(random.NextString());
-            _connection.Add(category);
+            unitOfWork.Add(category);
             var blog = new Blog(random.NextString(), category, user, random.NextDateTime(), random.NextString());
-            _connection.Add(blog);
+            unitOfWork.Add(blog);
+
+            unitOfWork.Commit();
 
             Assert.NotEqual(0, user.Id);
             Assert.NotEqual(0, category.Id);
