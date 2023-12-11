@@ -43,7 +43,12 @@ class LtUnitOfWork : ILtUnitOfWork
 
     interface IDifference
     {
-        void Reflect(LtConnection connection);
+        void ExecuteAdd(LtConnection connection);
+        ValueTask ExecuteAddAsync(LtConnection connection, CancellationToken cancellationToken);
+        void ExecuteUpdate(LtConnection connection);
+        ValueTask ExecuteUpdateAsync(LtConnection connection, CancellationToken cancellationToken);
+        void ExecuteRemove(LtConnection connection);
+        ValueTask ExecuteRemoveAsync(LtConnection connection, CancellationToken cancellationToken);
     }
     class Difference<TEntity> : IDifference where TEntity : class
     {
@@ -51,21 +56,51 @@ class LtUnitOfWork : ILtUnitOfWork
         public List<TEntity> Updating { get; } = new();
         public List<TEntity> Removing { get; } = new();
 
-        public void Reflect(LtConnection connection)
+        public void ExecuteAdd(LtConnection connection)
         {
             if (Adding.Count != 0)
             {
                 connection.AddRange(Adding);
                 Adding.Clear();
             }
+        }
+        public async ValueTask ExecuteAddAsync(LtConnection connection, CancellationToken cancellationToken)
+        {
+            if (Adding.Count != 0)
+            {
+                await connection.AddRangeAsync(Adding, cancellationToken);
+                Adding.Clear();
+            }
+        }
+        public void ExecuteUpdate(LtConnection connection)
+        {
             if (Updating.Count != 0)
             {
                 connection.UpdateRange(Updating);
                 Updating.Clear();
             }
+        }
+        public async ValueTask ExecuteUpdateAsync(LtConnection connection, CancellationToken cancellationToken)
+        {
+            if (Updating.Count != 0)
+            {
+                await connection.UpdateRangeAsync(Updating, cancellationToken);
+                Updating.Clear();
+            }
+        }
+        public void ExecuteRemove(LtConnection connection)
+        {
             if (Removing.Count != 0)
             {
                 connection.RemoveRange(Removing);
+                Removing.Clear();
+            }
+        }
+        public async ValueTask ExecuteRemoveAsync(LtConnection connection, CancellationToken cancellationToken)
+        {
+            if (Removing.Count != 0)
+            {
+                await connection.RemoveRangeAsync(Removing, cancellationToken);
                 Removing.Clear();
             }
         }
@@ -156,17 +191,27 @@ class LtUnitOfWork : ILtUnitOfWork
 
     public void Commit(IsolationLevel? isolationLevel = default)
     {
+        if (_connection.CurrentTransaction == null)
+            beginTransactionAndCommit(isolationLevel);
+        else
+            commit();
+    }
+
+    public ValueTask CommitAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default)
+    {
+        if (_connection.CurrentTransaction == null)
+            return beginTransactionAndCommitAsync(isolationLevel, cancellationToken);
+        else
+            return commitAsync(cancellationToken);
+    }
+
+    void beginTransactionAndCommit(IsolationLevel? isolationLevel = default)
+    {
         using (var transaction = _connection.BeginTransaction(isolationLevel ?? IsolationLevel.Unspecified))
         {
             try
             {
-                foreach (var meta in _metaService.AllEntityMetas)
-                {
-                    if (_differences.TryGetValue(meta.Type, out var value))
-                    {
-                        value.Reflect(_connection);
-                    }
-                }
+                commit();
 
                 transaction.Commit();
             }
@@ -178,29 +223,85 @@ class LtUnitOfWork : ILtUnitOfWork
         }
     }
 
-    public async ValueTask CommitAsync(IsolationLevel? isolationLevel = default, CancellationToken cancellationToken = default)
+    async ValueTask beginTransactionAndCommitAsync(IsolationLevel? isolationLevel, CancellationToken cancellationToken)
     {
-
-        var transaction = await _connection.BeginTransactionAsync(isolationLevel ?? IsolationLevel.Unspecified, cancellationToken);
-        try
+        using (var transaction = await _connection.BeginTransactionAsync(isolationLevel ?? IsolationLevel.Unspecified, cancellationToken))
         {
-            foreach (var meta in _metaService.AllEntityMetas)
+            try
             {
-                if (_differences.TryGetValue(meta.Type, out var value))
-                {
-                    value.Reflect(_connection);
-                }
+                await commitAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
             }
-            await transaction.CommitAsync(cancellationToken);
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
-        catch
+    }
+
+    void commit()
+    {
+        var all = _metaService.AllEntityMetas;
+
+        // Add
+        foreach (var meta in all)
         {
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                value.ExecuteAdd(_connection);
+            }
         }
-        finally
+
+        // Update
+        foreach (var meta in all)
         {
-            await transaction.DisposeAsync();
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                value.ExecuteUpdate(_connection);
+            }
+        }
+
+        // Remove
+        foreach (var meta in all.Reverse())
+        {
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                value.ExecuteRemove(_connection);
+            }
+        }
+    }
+
+    async ValueTask commitAsync(CancellationToken cancellationToken)
+    {
+        var all = _metaService.AllEntityMetas;
+
+        // Add
+        foreach (var meta in all)
+        {
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                await value.ExecuteAddAsync(_connection, cancellationToken);
+            }
+        }
+
+        // Update
+        foreach (var meta in all)
+        {
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                await value.ExecuteUpdateAsync(_connection, cancellationToken);
+            }
+        }
+
+        // Remove
+        foreach (var meta in all.Reverse())
+        {
+            if (_differences.TryGetValue(meta.Type, out var value))
+            {
+                await value.ExecuteRemoveAsync(_connection, cancellationToken);
+            }
         }
     }
 }

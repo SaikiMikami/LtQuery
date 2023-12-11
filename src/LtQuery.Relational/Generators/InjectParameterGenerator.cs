@@ -103,7 +103,6 @@ class InjectParameterGenerator : AbstractGenerator
         var entity = il.DeclareLocal(typeof(TEntity));
         var stringb = il.DeclareLocal(typeof(DefaultInterpolatedStringHandler));
 
-
         // span = arg1
         il.EmitLdarg(1);
         il.EmitStloc(span);
@@ -122,6 +121,37 @@ class InjectParameterGenerator : AbstractGenerator
             il.EmitCall(Cast<TEntity>.Span_get_Item);
             il.Emit(OpCodes.Ldind_Ref);
             il.EmitStloc(entity);
+
+            // Update foreignKeies
+            var foreignKeies = meta.Properties.Where(_ => _ is ForeignKeyMeta).Cast<ForeignKeyMeta>();
+            if (dbMethod != DbMethod.Remove && foreignKeies.Count() != 0)
+            {
+                foreach (var foreignKey in foreignKeies)
+                {
+                    // if(entity.ForeignKey == default)
+                    var endIf = il.DefineLabel();
+                    il.EmitLdloc(entity);
+                    il.EmitCall(foreignKey.Info.GetGetMethod()!);
+                    il.Emit(OpCodes.Brtrue_S, endIf);
+                    {
+                        // if(entity.Navigation != null)
+                        var nav = il.DeclareLocal(foreignKey.Navigation.Type);
+                        il.EmitLdloc(entity);
+                        il.EmitCall(foreignKey.Navigation.PropertyInfo.GetGetMethod()!);
+                        il.EmitStloc(nav);
+                        il.EmitLdloc(nav);
+                        il.Emit(OpCodes.Brfalse_S, endIf);
+                        {
+                            // entity.ForeignKey = entity.Navigation.Key
+                            il.EmitLdloc(entity);
+                            il.EmitLdloc(nav);
+                            il.EmitCall(foreignKey.DestNavigation.Parent.Key.Info.GetGetMethod()!);
+                            il.EmitCall(foreignKey.Info.GetSetMethod()!);
+                        }
+                    }
+                    il.MarkLabel(endIf);
+                }
+            }
 
             var constructor = typeof(DefaultInterpolatedStringHandler).GetConstructor(new[] { typeof(int), typeof(int) })!;
             var method1 = _DefaultInterpolatedStringHandler_AppendFormattedInt;
