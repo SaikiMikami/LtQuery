@@ -43,10 +43,23 @@ namespace LtQueryBenchmarks
                 }
                 context.SaveChanges();
             }
+            using (var context = new TestContext())
+            {
+                for (var i = 0; i < 10; i++)
+                {
+                    var tag = new Tag()
+                    {
+                        Name = rand.NextString(),
+                    };
+                    context.Add(tag);
+                }
+                context.SaveChanges();
+            }
             for (var i = 0; i < 10000; i++)
             {
                 using (var context = new TestContext())
                 {
+                    var tagId = rand.Next() % 10;
                     var blog = new Blog()
                     {
                         Title = rand.NextString(),
@@ -54,6 +67,12 @@ namespace LtQueryBenchmarks
                         UserId = rand.Next() % 10 + 1,
                         DateTime = rand.NextDateTime(),
                         Content = rand.NextString(500),
+                        BlogTags = new()
+                        {
+                            new (){ TagId = (tagId) % 10 + 1, },
+                            new (){ TagId = (tagId + 1) % 10 + 1, },
+                            new (){ TagId = (tagId + 2) % 10 + 1, },
+                        },
                     };
                     context.Add(blog);
 

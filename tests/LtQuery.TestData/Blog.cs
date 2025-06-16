@@ -11,7 +11,7 @@ public class Blog
 
     public Category Category { get; set; } = default!;
     public User User { get; set; } = default!;
-    public List<BlogTag> BlogTags { get; set; } = default!;
+    public List<BlogTag> BlogTags { get; set; } = new();
     public List<Post> Posts { get; } = new();
 
     public Blog(string title, Category category, User user, DateTime dateTime, string content)

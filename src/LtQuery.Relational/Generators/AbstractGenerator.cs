@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Data.Common;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace LtQuery.Relational.Generators;
 
@@ -46,6 +47,13 @@ public abstract class AbstractGenerator
     protected static readonly MethodInfo DbDataReader_GetGuid = DbDataReaderType.GetMethod(nameof(DbDataReader.GetGuid))!;
     protected static readonly MethodInfo DbDataReader_GetDateTime = DbDataReaderType.GetMethod(nameof(DbDataReader.GetDateTime))!;
     protected static readonly MethodInfo DbDataReader_GetString = DbDataReaderType.GetMethod(nameof(DbDataReader.GetString))!;
+
+
+    protected static readonly Type DefaultInterpolatedStringHandlerType = typeof(DefaultInterpolatedStringHandler);
+    protected static readonly ConstructorInfo DefaultInterpolatedStringHandler_Constructor = DefaultInterpolatedStringHandlerType.GetConstructor(new[] { typeof(int), typeof(int) })!;
+    protected static readonly MethodInfo DefaultInterpolatedStringHandler_AppendFormattedInt = DefaultInterpolatedStringHandlerType.GetMethods(BindingFlags.Public | BindingFlags.Instance).Single(_ => _.Name == nameof(DefaultInterpolatedStringHandler.AppendFormatted) && _.IsGenericMethod && _.GetParameters().Length == 1).MakeGenericMethod(typeof(int));
+    protected static readonly MethodInfo DefaultInterpolatedStringHandler_AppendLiteral = DefaultInterpolatedStringHandlerType.GetMethod(nameof(DefaultInterpolatedStringHandler.AppendLiteral), new[] { typeof(string) })!;
+    protected static readonly MethodInfo DefaultInterpolatedStringHandler_ToStringAndClear = DefaultInterpolatedStringHandlerType.GetMethod(nameof(DefaultInterpolatedStringHandler.ToStringAndClear))!;
 
     protected class Cast<TEntity>
     {

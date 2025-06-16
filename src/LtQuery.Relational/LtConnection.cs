@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+
 namespace LtQuery.Relational;
 
 class LtConnection : ILtConnection

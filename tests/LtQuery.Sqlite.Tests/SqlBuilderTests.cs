@@ -340,7 +340,7 @@ public class SqlBuilderTests
     }
 
     [Fact]
-    public void CreateCounttSql()
+    public void CreateCountSql()
     {
         var query = Lt.Query<Blog>().ToImmutable();
         var actual = _inst.CreateCountSql(query);
@@ -349,7 +349,7 @@ public class SqlBuilderTests
     }
 
     [Fact]
-    public void CreateCounttSql_WithParameter()
+    public void CreateCountSql_WithParameter()
     {
         var query = Lt.Query<Blog>().Where(_ => _.Id > Lt.Arg<int>("Id")).ToImmutable();
         var actual = _inst.CreateCountSql(query);
